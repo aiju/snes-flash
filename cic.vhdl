@@ -11,17 +11,17 @@ entity cic is
 end cic;
 
 architecture main of cic is
-	signal a, x, bl, p0 : unsigned(3 downto 0);
-	signal bm, sp, pch : unsigned(1 downto 0);
-	signal pc : unsigned(9 downto 0);
-	signal carry : unsigned(0 downto 0);
+	signal a, x, bl, p0 : unsigned(3 downto 0) := X"0";
+	signal bm, sp, pch : unsigned(1 downto 0) := "00";
+	signal pc : unsigned(9 downto 0) := (others => '0');
+	signal carry : unsigned(0 downto 0) := "0";
 
 	signal b : integer;
-	type ram_t is array(31 downto 0) of unsigned(3 downto 0);
+	type ram_t is array(0 to 31) of unsigned(3 downto 0);
 	signal mem : ram_t;
-	type stack_t is array(3 downto 0) of unsigned(9 downto 0);
+	type stack_t is array(0 to 3) of unsigned(9 downto 0);
 	signal stack : stack_t;
-	type rom_t is array(511 downto 0) of unsigned(7 downto 0);
+	type rom_t is array(0 to 511) of unsigned(7 downto 0);
 	signal rom : rom_t := (
 X"00", X"80", X"78", X"cb", X"21", X"00", X"46", X"27", X"00", X"35", X"00", X"d3", X"75", X"31", X"7c", X"4a", 
 X"21", X"00", X"a1", X"30", X"c1", X"00", X"01", X"70", X"00", X"d4", X"21", X"41", X"46", X"00", X"34", X"70", 
@@ -79,6 +79,8 @@ begin
 			end if;
 			if reset = '1' then
 				pc <= (others => '0');
+				jumped := '1';
+				skip <= '0';
 			end if;
 			if loadpc = '1' or skip = '1' or reset = '1' then
 				op := X"00";
