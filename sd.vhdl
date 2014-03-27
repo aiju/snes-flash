@@ -12,7 +12,9 @@ entity sd is
 		regrd, regwr : in std_logic;
 		regaddr : in unsigned(3 downto 0);
 		regin: in unsigned(7 downto 0);
-		regout : out unsigned(7 downto 0)
+		regout : out unsigned(7 downto 0);
+		txstart, txstep : out std_logic;
+		txdata : out unsigned(7 downto 0)
 	);
 end sd;
 
@@ -34,11 +36,22 @@ architecture main of sd is
 	constant NOOP : unsigned(5 downto 0) := "111111";
 	signal arg : unsigned(31 downto 0);
 	signal go, failed : std_logic;
+	
+	type nbyte_t is range 0 to 511;
+	signal datbuf : unsigned(3 downto 0);
+	type datastate_t is (IDLE, WAITDATA, DATA, CRC);
+	signal datastate : datastate_t := IDLE;
+	signal nibble : std_logic;
+	signal nbyte : nbyte_t;
+	signal datago, datastop : std_logic;
 
 	signal response : unsigned(31 downto 0);
-	type state_t is (NOCARD, RESET, IDLE, ERROR);
+	type state_t is (NOCARD, RESET, IDLE, ERROR, READCMD);
 	signal state : state_t := NOCARD;
 	signal hc : std_logic;
+	
+	signal blk : unsigned(31 downto 0);
+	signal readblk : std_logic;
 begin
 	process
 	begin
@@ -62,10 +75,61 @@ begin
 	clkout <= '1' when (slow = '1' and div = X"FF") or (slow = '0' and div(1 downto 0) = "11") else '0';
 
 	process
+	begin
+		wait until rising_edge(clk);
+		txstep <= '0';
+		case datastate is
+		when IDLE =>
+			if datago = '1' then
+				datastate <= WAITDATA;
+			end if;
+		when WAITDATA =>
+			if clkin = '1' and sddat0(0) = '0' then
+				datastate <= DATA;
+				nibble <= '0';
+				nbyte <= 0;
+				txstart <= '1';
+			end if;
+			if datastop = '1' then
+				txstart <= '0';
+				datastate <= IDLE;
+			end if;
+		when DATA =>
+			if clkin = '1' then
+				if nibble = '0' then
+					datbuf <= sddat0;
+				else
+					txstep <= '1';
+					txdata(7 downto 4) <= datbuf;
+					txdata(3 downto 0) <= sddat0;
+					if nbyte = 511 then
+						datastate <= CRC;
+						txstart <= '0';
+						nbyte <= 0;
+					else
+						nbyte <= nbyte + 1;
+					end if;
+				end if;
+				nibble <= not nibble;
+			end if;
+		when CRC =>
+			if clkin = '1' then
+				if nbyte = 16 then
+					datastate <= IDLE;
+				else
+					nbyte <= nbyte + 1;
+				end if;
+			end if;
+		end case;
+	end process;
+
+	process
 		variable err : std_logic;
 		variable cond : boolean;
 	begin
 		wait until rising_edge(clk);
+		datago <= '0';
+		datastop <= '0';
 		case cmdstate is
 		when IDLE =>
 			sdcmd <= '1';
@@ -102,6 +166,10 @@ begin
 					when "000000" =>
 						sdcmd <= '1';
 						cmdstate <= WAIT0;
+					when "010001" =>
+						sdcmd <= 'Z';
+						cmdstate <= WAITRESP;
+						datago <= '1';
 					when others =>	
 						sdcmd <= 'Z';
 						cmdstate <= WAITRESP;
@@ -141,6 +209,9 @@ begin
 						failed <= '1';
 					else
 						failed <= buf(46) or not buf(0);
+					end if;
+					if cmd = "010001" and failed = '1' then
+						datastop <= '1';
 					end if;
 				else
 					cmdctr <= cmdctr + 1;
@@ -244,6 +315,23 @@ begin
 				end if;
 			end if;
 		when IDLE =>
+			if readblk = '1' then
+				state <= READCMD;
+				ctr <= 0;
+			end if;
+		when READCMD =>
+			if cmdstate = IDLE then
+				if hc = '1' then
+					arg <= blk;
+				else
+					arg <= blk(22 downto 0) & "000000000";
+				end if;
+				cmd <= "001001";
+				go <= '1';
+			end if;
+			if cmdstate = DONE and datastate = IDLE then
+				state <= IDLE;
+			end if;
 		when ERROR =>
 		end case;
 		if card = '0' then
@@ -255,6 +343,7 @@ begin
 	process
 	begin
 		wait until rising_edge(clk);
+		readblk <= '0';
 		if regrd = '1' then
 			regout <= X"00";
 			case to_integer(regaddr) is
@@ -270,6 +359,21 @@ begin
 			when 2 => regout <= response(15 downto 8);
 			when 3 => regout <= response(23 downto 16);
 			when 4 => regout <= response(31 downto 24);
+			when others =>
+			end case;
+		end if;
+		if regwr = '1' then
+			case to_integer(regaddr) is
+			when 0 =>
+				case to_integer(regin) is
+				when 1 =>
+					readblk <= '1';
+				when others =>
+				end case;
+			when 1 => blk(7 downto 0) <= regin;
+			when 2 => blk(15 downto 8) <= regin;
+			when 3 => blk(23 downto 16) <= regin;
+			when 4 => blk(31 downto 24) <= regin;
 			when others =>
 			end case;
 		end if;
