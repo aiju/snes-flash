@@ -46,17 +46,21 @@ sderror:
 sdfatal:
 	jsr box
 	jsr sderror
--	bra -
+	jmp loop
 
 sdread:
 	php
 	rep #$20
 	lda sdaddr
 	sta DMAADDR
+	clc
 	lda sdblk
+	adc partoff
 	sta SDBLK
 	lda sdblk+2
+	adc partoff+2
 	sta SDBLK+2
+	sep #$20
 	lda #MEMMODE
 	sta DMACTRL
 	lda #READ

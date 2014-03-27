@@ -189,7 +189,14 @@ puts:
 	plp
 	rts
 
+putst:
+	pla
+	plx
+	pha
+	jmp puts
+
 putbyte:
+	pha
 	php
 	sep #$30
 	pha
@@ -205,6 +212,19 @@ putbyte:
 	tax
 	lda digits.w,x
 	jsr putc
+	plp
+	pla
+	rts
+	
+putword:
+	php
+	rep #$20
+	pha
+	xba
+	jsr putbyte
+	xba
+	jsr putbyte
+	pla
 	plp
 	rts
 
@@ -299,3 +319,17 @@ windowdata:
 	.db BOXH*8, BOXL*8, (BOXL+BOXW)*8
 	.db $01, $FF, $00
 	.db $00
+
+die:
+	jsr box
+	rep #$10
+	plx
+	jsr puts
+	jmp loop
+
+nope:
+	rep #$10
+	ldx #_error
+	jsr puts
+	jmp loop
+_error: .ASC 10, "ERROR", 0

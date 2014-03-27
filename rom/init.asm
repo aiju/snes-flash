@@ -74,9 +74,19 @@ init:
 	sep #$20
 	dec tmp
 	bne --
+	
+	rep #$20
+	lda #$FE80
+	sta inf
 
 	jsr main
--	bra -
+loop:	wai
+	pea $0000
+	plb
+	sep #$20
+	lda #$0
+	sta $4200
+	jml inf
 
 font:
 .incbin "ascii.chr"

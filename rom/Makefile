@@ -5,6 +5,7 @@ OBJ=\
 	main.o\
 	cons.o\
 	sd.o\
+	fs.o\
 
 all: rom.mif
 

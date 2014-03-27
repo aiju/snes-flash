@@ -14,6 +14,7 @@ ROMSIZE $05
 .ENDSNES
 
 .ENUM $0
+inf	DS 2
 tmp	DS 2
 tmp2	DS 2
 pos	DS 3
@@ -21,6 +22,10 @@ attrib	DB
 window	DB
 sdaddr	DS 2
 sdblk	DS 4
+partoff	DS 4
+clsiz	DB
+clsh	DB
+clust	DS 4
 .ENDE
 
 .EQU PICSIZ 1920
@@ -45,3 +50,6 @@ picbak	DS PICSIZ
 .EQU MEMMODE 1
 .EQU DMACTRL $3010
 .EQU DMAADDR $3011
+
+.EQU BREC $FF8000
+.EQU FAT $FF8200
