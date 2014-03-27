@@ -46,7 +46,7 @@ architecture main of sd is
 	signal datago, datastop : std_logic;
 
 	signal response : unsigned(31 downto 0);
-	type state_t is (NOCARD, RESET, IDLE, ERROR, READCMD);
+	type state_t is (NOCARD, RESET, IDLE, ERROR, READCMD, WAITDATA);
 	signal state : state_t := NOCARD;
 	signal hc : std_logic;
 	
@@ -121,6 +121,10 @@ begin
 				end if;
 			end if;
 		end case;
+		if card = '0' then
+			datastate <= IDLE;
+			txstart <= '0';
+		end if;
 	end process;
 
 	process
@@ -317,7 +321,6 @@ begin
 		when IDLE =>
 			if readblk = '1' then
 				state <= READCMD;
-				ctr <= 0;
 			end if;
 		when READCMD =>
 			if cmdstate = IDLE then
@@ -326,10 +329,14 @@ begin
 				else
 					arg <= blk(22 downto 0) & "000000000";
 				end if;
-				cmd <= "001001";
+				cmd <= "010001";
 				go <= '1';
 			end if;
-			if cmdstate = DONE and datastate = IDLE then
+			if cmdstate = DONE then
+				state <= WAITDATA;
+			end if;
+		when WAITDATA =>
+			if datastate = IDLE then
 				state <= IDLE;
 			end if;
 		when ERROR =>

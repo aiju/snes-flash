@@ -86,6 +86,7 @@ begin
 				udqm <= not curaddr(0);
 			when "100" =>
 				cas <= '0';
+				ba <= curaddr(22 downto 21);
 				a(7 downto 0) <= curaddr(8 downto 1);
 				a(10) <= '1';
 			when "111" =>
@@ -109,6 +110,7 @@ begin
 				if step = '1' then
 					cas <= '0';
 					we <= '0';
+					ba <= curaddr(22 downto 21);
 					a(7 downto 0) <= curaddr(8 downto 1);
 					ldqm <= curaddr(0);
 					udqm <= not curaddr(0);

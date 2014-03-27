@@ -56,7 +56,7 @@ begin
 	romdata <= unsigned(romdata0);
 	regen <= sden or dmaen;
 	cartrd <= snesrd0 nor (snescart0 and not regen);
-	memen <= (snesrd0 nor snescart0) when romen = '0' or addr(22 downto 16) /= "0000000" else '0';
+	memen <= (snesrd0 nor snescart0) when romen = '0' or snesa0(23 downto 16) /= "00000000" else '0';
 	snesd <= (others => 'Z') when cartrd = '0' else
 				sdreg when sden = '1' else
 				dmareg when dmaen = '1' else
@@ -65,7 +65,7 @@ begin
 	snesdir <= cartrd;
 	addr <= snesa0(23 downto 16) & snesa0(14 downto 0);
 	sden <= '1' when (snesa0 and X"40FFF0") = X"003000" else '0';
-	sd0: entity work.sd port map(clk, sdclk, sdcd, sdcmd, sddat, sden and not snesrd0, sden and not sneswr0 and sneswr1, snesa0(3 downto 0), snesd0, sdreg, txstart, txstep, txdata);
+	sd0: entity work.sd port map(clk, sdclk, sdcd, sdcmd, sddat, sden and not snesrd0, sden and sneswr0 and not sneswr1, snesa0(3 downto 0), snesd0, sdreg, txstart, txstep, txdata);
 	dmaen <= '1' when (snesa0 and X"40FFF0") = X"003010" else '0';
-	dma0: entity work.dma port map(clk, snesreset0, dmaen and not snesrd0, dmaen and not sneswr0 and sneswr1, addr(3 downto 0), snesd0, dmareg, dmaaddr, txstart, romen, memmode, memstart);
+	dma0: entity work.dma port map(clk, snesreset0, dmaen and not snesrd0, dmaen and sneswr0 and not sneswr1, addr(3 downto 0), snesd0, dmareg, dmaaddr, txstart, romen, memmode, memstart);
 end main;
