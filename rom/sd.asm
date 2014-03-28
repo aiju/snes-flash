@@ -3,7 +3,6 @@
 .SECTION "CODE"
 busy:
 	php
-	rep #$10
 	sep #$20
 -	bit SDSTAT
 	bmi -
@@ -16,6 +15,9 @@ busy:
 	rts
 
 sderror:
+	php
+	rep #$10
+	sep #$20
 	lda SDSTAT
 	cmp #$40
 	bne +
@@ -28,7 +30,7 @@ sderror:
 	sep #$20
 	ldx #error
 	jsr puts
-;	lda SDSTAT
+	lda SDSTAT
 	and #$3F
 	jsr putbyte
 	ldx #response
@@ -41,6 +43,7 @@ sderror:
 	jsr putbyte
 	lda SDRESP
 	jsr putbyte
+	plp
 	rts
 
 sdfatal:
@@ -61,12 +64,13 @@ sdread:
 	adc partoff+2
 	sta SDBLK+2
 	sep #$20
-	lda #MEMMODE
+	lda dmactrl
+	ora #MEMMODE
 	sta DMACTRL
-	lda #READ
+	lda #READCMD
 	sta SDCMD
 	jsr busy
-	lda #0
+	lda dmactrl
 	sta DMACTRL
 	rol tmp
 	plp

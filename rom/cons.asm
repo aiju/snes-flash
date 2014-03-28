@@ -71,7 +71,7 @@ consinit:
 	lda #$80
 	sta $420c
 
-	lda #$80
+	lda #$81
 	sta $4200
 
 	lda #$f
@@ -107,6 +107,18 @@ vblank:
 	and #$20
 	eor #$30
 	sta $2130
+	
+	lda #1
+-	bit $4212
+	bne -
+	rep #$20
+	lda $4218
+	pha
+	and bmask
+	sta btn
+	pla
+	eor #$ffff
+	sta bmask
 
 	rep #$30
 	plb
@@ -189,14 +201,9 @@ puts:
 	plp
 	rts
 
-putst:
-	pla
-	plx
-	pha
-	jmp puts
-
 putbyte:
 	pha
+	phx
 	php
 	sep #$30
 	pha
@@ -213,6 +220,7 @@ putbyte:
 	lda digits.w,x
 	jsr putc
 	plp
+	plx
 	pla
 	rts
 	
@@ -228,14 +236,22 @@ putword:
 	plp
 	rts
 
-blanks:
+clrline:
 	php
+	rep #$20
+	lda pos
+	pha
+	and #$FFC0
+	sta pos
 	sep #$30
 	ldx #$20
 -	lda #$20
 	jsr putc
 	dex
 	bne -
+	rep #$20
+	pla
+	sta pos
 	plp
 	rts
 
@@ -259,6 +275,20 @@ move:
 	asl
 	clc
 	adc #pic & $FFFF
+	sta pos
+	plp
+	rts
+	
+xmove:
+	php
+	rep #$20
+	lda pos
+	and #$FFC0
+	sta pos
+	txa
+	and #$1F
+	asl
+	ora pos
 	sta pos
 	plp
 	rts
@@ -303,7 +333,9 @@ box:
 endbox:
 	php
 	sep #$20
-	stz window
+	lda #$FF
+	trb window
+	beq +
 	rep #$30
 	lda #PICSIZ-1
 	ldx #picbak & $FFFF
@@ -311,7 +343,7 @@ endbox:
 	phb
 	mvn $7F, $7F
 	plb
-	plp
++	plp
 	rts
 
 windowdata:

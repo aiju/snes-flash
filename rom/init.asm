@@ -75,7 +75,13 @@ init:
 	dec tmp
 	bne --
 	
+	lda #HIROM
+	sta dmactrl
+	sta DMACTRL
+	
 	rep #$20
+	lda #$FFFF
+	sta ROMMASK
 	lda #$FE80
 	sta inf
 
