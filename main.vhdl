@@ -29,7 +29,7 @@ architecture main of snes is
 	signal clk, reset, memmode, romen, memstart, txstart, txstep : std_logic;
 	signal snesrd0, snesrd1, sneswr0, sneswr1, snescart0, snesreset0 : std_logic;
 	signal snesa0 : unsigned(23 downto 0);
-	signal addr, dmaaddr : unsigned(22 downto 0);
+	signal romaddr, dmaaddr : unsigned(22 downto 0);
 	signal memdata, romdata, txdata, sdreg, dmareg, snesd0 : unsigned(7 downto 0);
 	signal memen, cartrd, regen, dmaen : std_logic;
 	signal romdata0 : std_logic_vector(7 downto 0);
@@ -50,9 +50,9 @@ begin
 
 	pll0: entity work.pll port map(inclk, clk, reset);
 	ramclk <= clk;
-	mem0: entity work.mem port map(clk, reset, ramcke, ramcs, ramwe, ramcas, ramras, ramldqm, ramudqm, rama, ramba, ramdq, memmode, memen, addr, memdata, memstart, txstep, dmaaddr, txdata);
+	mem0: entity work.mem port map(clk, reset, ramcke, ramcs, ramwe, ramcas, ramras, ramldqm, ramudqm, rama, ramba, ramdq, memmode, memen, romaddr, memdata, memstart, txstep, dmaaddr, txdata);
 	--rom0: entity work.bootrom port map(clk, addr(15 downto 0), romdata);
-	rom0: entity work.rom port map(std_logic_vector(addr(14 downto 0)), clk, (others => '0'), '0', romdata0);
+	rom0: entity work.rom port map(std_logic_vector(romaddr(14 downto 0)), clk, (others => '0'), '0', romdata0);
 	romdata <= unsigned(romdata0);
 	regen <= sden or dmaen;
 	cartrd <= snesrd0 nor (snescart0 and not regen);
@@ -63,9 +63,8 @@ begin
 	         memdata when memen = '1' else
 				romdata;
 	snesdir <= cartrd;
-	addr <= snesa0(23 downto 16) & snesa0(14 downto 0);
 	sden <= '1' when (snesa0 and X"40FFF0") = X"003000" else '0';
 	sd0: entity work.sd port map(clk, sdclk, sdcd, sdcmd, sddat, sden and not snesrd0, sden and sneswr0 and not sneswr1, snesa0(3 downto 0), snesd0, sdreg, txstart, txstep, txdata);
 	dmaen <= '1' when (snesa0 and X"40FFF0") = X"003010" else '0';
-	dma0: entity work.dma port map(clk, snesreset0, dmaen and not snesrd0, dmaen and sneswr0 and not sneswr1, addr(3 downto 0), snesd0, dmareg, dmaaddr, txstart, romen, memmode, memstart);
+	dma0: entity work.dma port map(clk, snesreset0, snesa0, romaddr, dmaen and not snesrd0, dmaen and sneswr0 and not sneswr1, snesa0(3 downto 0), snesd0, dmareg, dmaaddr, txstart, romen, memmode, memstart);
 end main;

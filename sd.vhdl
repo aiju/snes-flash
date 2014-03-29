@@ -27,7 +27,10 @@ architecture main of sd is
 	signal card : std_logic := '0';
 	signal slow : std_logic := '1';
 	
-	type cmdstate_t is (IDLE, COMMAND, WAITRESP, RESP, RESP2, WAITBUSY, DONE, WAIT0);
+	type timeout_t is range 0 to 1048575;
+	signal cmdtimeout, datatimeout : timeout_t;
+	constant TIMEOUT : timeout_t := 1000000;
+	type cmdstate_t is (IDLE, COMMAND, WAITRESP, RESP, RESP2, WAITBUSY, DONE, WAIT0, TIMEERR);
 	signal cmdstate : cmdstate_t := IDLE;
 	signal buf : unsigned(47 downto 0);
 	type counter_t is range 0 to 255;
@@ -39,11 +42,11 @@ architecture main of sd is
 	
 	type nbyte_t is range 0 to 511;
 	signal datbuf : unsigned(3 downto 0);
-	type datastate_t is (IDLE, WAITDATA, DATA, CRC);
+	type datastate_t is (IDLE, WAITDATA, DATA, CRC, TIMEERR);
 	signal datastate : datastate_t := IDLE;
 	signal nibble : std_logic;
 	signal nbyte : nbyte_t;
-	signal datago, datastop : std_logic;
+	signal datago, datastop, dataclr, datafailed : std_logic;
 
 	signal response : unsigned(31 downto 0);
 	type state_t is (NOCARD, RESET, IDLE, ERROR, READCMD, WAITDATA);
@@ -51,7 +54,7 @@ architecture main of sd is
 	signal hc : std_logic;
 	
 	signal blk : unsigned(31 downto 0);
-	signal readblk : std_logic;
+	signal resetcmd, readblk : std_logic;
 begin
 	process
 	begin
@@ -77,13 +80,21 @@ begin
 	process
 	begin
 		wait until rising_edge(clk);
+		datatimeout <= datatimeout + 1;
 		txstep <= '0';
 		case datastate is
 		when IDLE =>
 			if datago = '1' then
 				datastate <= WAITDATA;
+				datatimeout <= 0;
+			end if;
+			if dataclr = '1' then
+				datafailed <= '0';
 			end if;
 		when WAITDATA =>
+			if datatimeout = TIMEOUT then
+				datastate <= TIMEERR;
+			end if;
 			if clkin = '1' and sddat0(0) = '0' then
 				datastate <= DATA;
 				nibble <= '0';
@@ -116,14 +127,19 @@ begin
 			if clkin = '1' then
 				if nbyte = 16 then
 					datastate <= IDLE;
+					datafailed <= '0';
 				else
 					nbyte <= nbyte + 1;
 				end if;
 			end if;
+		when TIMEERR =>
+			datafailed <= '1';
+			datastate <= IDLE;
 		end case;
-		if card = '0' then
+		if card = '0' or resetcmd = '1' then
 			datastate <= IDLE;
 			txstart <= '0';
+			datafailed <= '0';
 		end if;
 	end process;
 
@@ -132,6 +148,7 @@ begin
 		variable cond : boolean;
 	begin
 		wait until rising_edge(clk);
+		cmdtimeout <= cmdtimeout + 1;
 		datago <= '0';
 		datastop <= '0';
 		case cmdstate is
@@ -166,6 +183,7 @@ begin
 				end if;
 				if cmdctr = 48 then
 					cmdctr <= 0;
+					cmdtimeout <= 0;
 					case cmd is
 					when "000000" =>
 						sdcmd <= '1';
@@ -183,6 +201,9 @@ begin
 				end if;
 			end if;
 		when WAITRESP =>
+			if cmdtimeout = TIMEOUT then
+				cmdstate <= TIMEERR;
+			end if;
 			if clkin = '1' and sdcmd0 = '0' then
 				if cmd = "000010" then
 					cmdstate <= RESP2;
@@ -207,7 +228,7 @@ begin
 					when "001000" =>
 						cond := buf(19 downto 8) /= arg(11 downto 0);
 					when others =>
-						cond := buf(39 downto 27) /= (12 downto 0 => '0');
+						cond := (buf(39 downto 24) and X"FD38") /= X"0000";
 					end case;
 					if cond then
 						failed <= '1';
@@ -216,6 +237,8 @@ begin
 					end if;
 					if cmd = "010001" and failed = '1' then
 						datastop <= '1';
+					else
+						dataclr <= '1';
 					end if;
 				else
 					cmdctr <= cmdctr + 1;
@@ -243,10 +266,15 @@ begin
 			if clkin = '1' and sddat0(0) = '1' then
 				cmdstate <= DONE;
 			end if;
+		when TIMEERR =>
+			failed <= '1';
+			datastop <= '1';
+			response <= (others => '0');
+			cmdstate <= DONE;
 		when DONE =>
 			cmdstate <= IDLE;
 		end case;
-		if card = '0' then
+		if card = '0' or resetcmd = '1' then
 			cmdstate <= IDLE;
 		end if;
 	end process;
@@ -341,7 +369,7 @@ begin
 			end if;
 		when ERROR =>
 		end case;
-		if card = '0' then
+		if card = '0' or resetcmd = '1' then
 			state <= NOCARD;
 			slow <= '1';
 		end if;
@@ -351,6 +379,7 @@ begin
 	begin
 		wait until rising_edge(clk);
 		readblk <= '0';
+		resetcmd <= '0';
 		if regrd = '1' then
 			regout <= X"00";
 			case to_integer(regaddr) is
@@ -358,7 +387,7 @@ begin
 				if state /= IDLE then
 					regout(7) <= card;
 				end if;
-				regout(6) <= not card or failed;
+				regout(6) <= not card or failed or datafailed;
 				if card = '1' then
 					regout(5 downto 0) <= cmd;
 				end if;
@@ -373,6 +402,8 @@ begin
 			case to_integer(regaddr) is
 			when 0 =>
 				case to_integer(regin) is
+				when 0 =>
+					resetcmd <= '1';
 				when 1 =>
 					readblk <= '1';
 				when others =>
