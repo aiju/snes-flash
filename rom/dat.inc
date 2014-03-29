@@ -34,6 +34,7 @@ dir	DS 4
 clust	DS 4
 cloff	DS 4
 eof	DB
+progress DB
 
 dirend	DS 3
 dpend	DS 3
@@ -47,6 +48,8 @@ bmask	DS 2
 
 smch	DS 1
 gamectl	DS 1
+size	DS 4
+rommask	DS 2
 
 buf	DS 256
 .ENDE

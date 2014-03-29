@@ -106,7 +106,10 @@ readfile:
 	bcs +
 	jsr nextclust
 	bcs +
-	bit eof
+	bit progress
+	bpl +
+	jsr showprog
++	bit eof
 	bpl -
 	plp
 	clc
@@ -117,6 +120,8 @@ readfile:
 	
 readdir:
 	php
+	sep #$20
+	stz progress
 	rep #$30
 	lda dir
 	sta clust
@@ -416,11 +421,11 @@ prevshown:
 -	dey
 	dey
 	dey
+	bmi +++
 	jsr getdent
 	bne +
-	iny
-	iny
-	iny
++++	plp
+	jmp nextshown
 	bra ++
 +	phy
 	jsr isshown
@@ -559,6 +564,7 @@ readheader:
 	
 	ldy #$1C
 	lda [dent],y
+	sta size
 	and #$3FF
 	beq +
 	cmp #$200
@@ -569,6 +575,7 @@ readheader:
 +	iny
 	iny
 	lda [dent],y
+	sta size+2
 	cmp #$61
 	bcs _size
 
@@ -589,6 +596,7 @@ readheader:
 	dex
 	bne -
 	sta tmp2
+	pha
 	rep #$10
 
 -	dec tmp2
@@ -601,12 +609,13 @@ readheader:
 ++	jmp _fs
 
 +	jsr clustsec
-	sep #$20
-	lda clsiz
-	dea
+	sep #$10
+	ldx clsiz
+	rep #$10
+	dex
+	stx tmp2
+	pla
 	and tmp2
-	rep #$20
-	and #$FF
 	clc
 	adc sdblk
 	sta sdblk
@@ -630,13 +639,18 @@ readrom:
 	bne +
 	jmp _fs
 +	sep #$10
+	lda #$0
+	ldx smch
+	bpl +
+	lda #-2
++	sta sdaddr
 	ldy #$1A
 	lda [dent],y
 	sta clust
 	ldy #$14
 	lda [dent],y
 	sta clust+2
-	stz sdaddr
+	dec progress
 	jsr readfile
 	bcs +
 	rts

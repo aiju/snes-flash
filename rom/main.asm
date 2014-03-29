@@ -68,8 +68,8 @@ loadgame:
 	and #$EF
 	cmp #$21
 	beq ++
+	rep #$30
 	jsr box
-	rep #$10
 	ldx #hdmsg
 	jsr puts
 	jmp confirm
@@ -91,6 +91,7 @@ loadgame:
 	jsr box
 	ldx #busystr
 	jsr puts
+	jsr parseheader
 	jsr readrom
 	jsr endbox
 	rep #$30
@@ -105,10 +106,7 @@ loadgame:
 	lda $4210
 
 	rep #$20
-	sep #$10
-	lda HEAD+$1D7
-	tax
-	jsr mask
+	lda rommask
 	sta ROMMASK
 	jmp buf
 +	rts
@@ -137,12 +135,24 @@ _pal:	.ASC "PAL", 10, 0
 _ntsc:	.ASC "NTSC", 10, 0
 
 mask:
+	php
 	rep #$20
 	lda #$4
 -	asl
 	dex
 	bne -
 	dea
+	plp
+	rts
+	
+parseheader:
+	php
+	rep #$20
+	lda HEAD+$1D7
+	tax
+	jsr mask
+	sta rommask
+	plp
 	rts
 
 waitkey:
@@ -162,9 +172,19 @@ confirm:
 	jsr endbox
 	sec
 	rts
+
+showprog:
+	php
+	rep #$30
+	ldx #BOX
+	jsr move
+	lda sdaddr
+	jsr putword
+	plp
+	rts
 	
 gamestart:
-	sep #$20
+	sep #$30
 	lda gamectl
 	ora #ROMDIS
 	sta DMACTRL
