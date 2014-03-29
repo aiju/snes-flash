@@ -36,9 +36,7 @@ initfat:
 	jsr sdread
 	bcc +
 	jmp sdfatal
-+	
-
-	lda BREC+$00B
++	lda BREC+$00B
 	cmp #512
 	bne _out
 	lda BREC+$011
@@ -98,30 +96,9 @@ initfat:
 +	rts
 _fatmsg: .ASC "FAT ", 0
 _rootmsg: .ASC "ROOT ", 0
-
-readfile:
-	php
-	sep #$20
--	jsr readclust
-	bcs +
-	jsr nextclust
-	bcs +
-	bit progress
-	bpl +
-	jsr showprog
-+	bit eof
-	bpl -
-	plp
-	clc
-	rts
-+	plp
-	sec
-	rts
 	
 readdir:
 	php
-	sep #$20
-	stz progress
 	rep #$30
 	lda dir
 	sta clust
@@ -129,11 +106,15 @@ readdir:
 	sta clust+2
 	LDADDR DIR
 	sta sdaddr
-	jsr readfile
+-	jsr readclust
+	bcs ++
+	jsr nextclust
 	bcc +
-	plp
+++	plp
 	sec
 	rts
++	bit eof-1
+	bpl -
 +	stz dirend
 	lda sdaddr
 	ora #ROMOFF>>8
@@ -611,7 +592,7 @@ readheader:
 +	jsr clustsec
 	sep #$10
 	ldx clsiz
-	rep #$10
+	rep #$30
 	dex
 	stx tmp2
 	pla
@@ -650,11 +631,17 @@ readrom:
 	ldy #$14
 	lda [dent],y
 	sta clust+2
-	dec progress
-	jsr readfile
+-	wai
+	jsr readclust
 	bcs +
+	jsr nextclust
+	bcs +
+	jsr showprog
+	bit eof-1
+	bpl -
 	rts
-+	jsr box
++	rep #$30
+	jsr box
 	jsr sderror
 	jsr waitkey
 	jsr readdir

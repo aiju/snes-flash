@@ -87,8 +87,9 @@ loadgame:
 	jsr romregion
 	jsr waitkey
 	and #BTNA
-	beq +
-	jsr box
+	bne +
+	jmp endbox
++	jsr box
 	ldx #busystr
 	jsr puts
 	jsr parseheader
@@ -109,7 +110,6 @@ loadgame:
 	lda rommask
 	sta ROMMASK
 	jmp buf
-+	rts
 
 romregion:
 	php
@@ -195,8 +195,5 @@ gameend:
 
 title: .ASC 10, " SNES FLASH CART", 0
 busystr: .ASC "BUSY", 10, 0
-nocard: .ASC "NO CARD", 0
-error: .ASC "CARD ERROR", 10, "CMD $", 0
-response: .ASC 10, "RESPONSE ", 0
 hdmsg: .ASC "INVALID HEADER", 0
 .ENDS

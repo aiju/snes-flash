@@ -306,7 +306,8 @@ box:
 	phb
 	mvn $7F, $7F
 	plb
-+	ldx #BOX
++	rep #$30
+	ldx #BOX
 	phx
 	sep #$20
 	lda #BOXH

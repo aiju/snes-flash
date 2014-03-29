@@ -21,19 +21,19 @@ sderror:
 	lda SDSTAT
 	cmp #$40
 	bne +
-	ldx #nocard
+	ldx #_nocard
 	jsr puts
 	plp
 	rts
 
 +	rep #$10
 	sep #$20
-	ldx #error
+	ldx #_error
 	jsr puts
 	lda SDSTAT
 	and #$3F
 	jsr putbyte
-	ldx #response
+	ldx #_response
 	jsr puts
 	lda SDRESP+3
 	jsr putbyte
@@ -43,6 +43,18 @@ sderror:
 	jsr putbyte
 	lda SDRESP
 	jsr putbyte
+	ldx #_blk
+	jsr puts
+	rep #$20
+	clc
+	lda sdblk
+	adc partoff
+	pha
+	lda sdblk+2
+	adc partoff+2
+	jsr putword
+	pla
+	jsr putword
 	plp
 	rts
 
@@ -76,5 +88,10 @@ sdread:
 	plp
 	ror tmp
 	rts
+
+_nocard: .ASC "NO CARD", 0
+_error: .ASC "CARD ERROR", 10, "CMD $", 0
+_response: .ASC 10, "RESPONSE ", 0
+_blk: .ASC 10, "BLOCK ", 0
 
 .ENDS
