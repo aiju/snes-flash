@@ -30,12 +30,12 @@ architecture main of sd is
 	type timeout_t is range 0 to 1048575;
 	signal cmdtimeout, datatimeout : timeout_t;
 	constant TIMEOUT : timeout_t := 1000000;
-	type cmdstate_t is (IDLE, COMMAND, WAITRESP, RESP, RESP2, WAITBUSY, DONE, WAIT0, TIMEERR);
+	type cmdstate_t is (IDLE, COMMAND, WAITRESP, RESP, RESP2, WAITBUSY, WAIT0, DONE, TIMEERR);
 	signal cmdstate : cmdstate_t := IDLE;
 	signal buf : unsigned(47 downto 0);
 	type counter_t is range 0 to 255;
 	signal cmdctr, ctr : counter_t;
-	signal cmd : unsigned(5 downto 0);
+	signal cmd, ecmd : unsigned(5 downto 0);
 	constant NOOP : unsigned(5 downto 0) := "111111";
 	signal arg : unsigned(31 downto 0);
 	signal go, failed : std_logic;
@@ -54,6 +54,7 @@ architecture main of sd is
 	type state_t is (NOCARD, RESET, IDLE, ERROR, READCMD, WAITDATA);
 	signal state : state_t := NOCARD;
 	signal hc : std_logic;
+	signal rca : unsigned(15 downto 0);
 	
 	signal blk : unsigned(31 downto 0);
 	signal resetcmd, readblk : std_logic;
@@ -116,6 +117,7 @@ begin
 				txstart <= '1';
 			end if;
 			if datastop = '1' then
+				datafailed <= '0';
 				txstart <= '0';
 				datastate <= IDLE;
 			end if;
@@ -185,6 +187,9 @@ begin
 				if cmd = NOOP then
 					cmdstate <= RESP2;
 				end if;
+				if cmd /= "001101" then
+					ecmd <= cmd;
+				end if;
 			end if;
 		when COMMAND =>
 			if clkout = '1' then
@@ -206,6 +211,8 @@ begin
 					when "000000" =>
 						sdcmd <= '1';
 						cmdstate <= WAIT0;
+						response <= (others => '0');
+						failed <= '0';
 					when "010001" =>
 						sdcmd <= 'Z';
 						cmdstate <= WAITRESP;
@@ -234,7 +241,8 @@ begin
 			if clkin = '1' then
 				buf <= buf(46 downto 0) & sdcmd0;
 				if cmdctr = 47 then
-					cmdstate <= DONE;
+					cmdctr <= 0;
+					cmdstate <= WAIT0;
 					response <= buf(39 downto 8);
 					cond := false;
 					case cmd is
@@ -265,30 +273,32 @@ begin
 		when RESP2 =>
 			if clkin = '1' then
 				if cmdctr = 135 then
-					cmdstate <= DONE;
+					cmdstate <= WAIT0;
+					cmdctr <= 0;
 					response <= (others => '0');
 					failed <= '0';
 				else
 					cmdctr <= cmdctr + 1;
 				end if;
 			end if;
-		when WAIT0 =>
-			if cmdctr = 9 then
-				cmdstate <= DONE;
-				response <= (others => '0');
-				failed <= '0';
-			else
-				cmdctr <= cmdctr + 1;
-			end if;
 		when WAITBUSY =>
 			if clkin = '1' and sddat0(0) = '1' then
-				cmdstate <= DONE;
+				cmdstate <= WAIT0;
+				cmdctr <= 0;
 			end if;
 		when TIMEERR =>
 			failed <= '1';
 			datastop <= '1';
 			response <= (others => '0');
 			cmdstate <= DONE;
+		when WAIT0 =>
+			if clkin = '1' then
+				if cmdctr = 9 then
+					cmdstate <= DONE;
+				else
+					cmdctr <= cmdctr + 1;
+				end if;
+			end if;
 		when DONE =>
 			cmdstate <= IDLE;
 		end case;
@@ -316,7 +326,7 @@ begin
 					arg <= (others => '0');
 				when 1 =>
 					cmd <= "001000";
-					arg <= X"000001A5";
+					arg <= X"000001AA";
 				when 2 =>
 					cmd <= "110111";
 					arg <= (others => '0');
@@ -338,6 +348,7 @@ begin
 					cmd <= "000011";
 				when 7 =>
 					cmd <= "000111";
+					rca <= response(31 downto 16);
 					arg(31 downto 16) <= response(31 downto 16);
 				when 8 => 
 					slow <= '0';
@@ -346,10 +357,13 @@ begin
 					cmd <= "110111";
 				when 10 =>
 					cmd <= "101010";
+					arg(31 downto 0) <= (others => '0');
 				when 11 =>
 					cmd <= "110111";
+					arg(31 downto 16) <= rca;
 				when 12 =>
 					cmd <= "000110";
+					arg(31 downto 0) <= (others => '0');
 					arg(1) <= '1';
 				when others =>
 					cmd <= "000000";
@@ -358,8 +372,9 @@ begin
 				end case;
 			end if;
 			if cmdstate = DONE then
-				if failed = '1' then
+				if failed = '1' and ctr /= 1 then
 					state <= ERROR;
+					ctr <= 0;
 				else
 					ctr <= ctr + 1;
 				end if;
@@ -386,10 +401,16 @@ begin
 				state <= IDLE;
 			end if;
 		when ERROR =>
+			if ctr = 0 and response(31 downto 0) = (31 downto 0 => '0') then
+				cmd <= "001101";
+				go <= '1';
+				ctr <= 1;
+			end if;
 		end case;
 		if card = '0' or resetcmd = '1' then
 			state <= NOCARD;
 			slow <= '1';
+			rca <= (others => '0');
 		end if;
 	end process;
 	
@@ -402,14 +423,14 @@ begin
 			regout <= X"00";
 			case to_integer(regaddr) is
 			when 0 =>
-				if state /= IDLE then
+				if state /= IDLE and state /= ERROR then
 					regout(7) <= card;
 				end if;
 				regout(6) <= not card or failed or datafailed;
 				regout(5) <= not card;
 				regout(4) <= datafailed;
 			when 1 =>
-				regout(5 downto 0) <= cmd;
+				regout(5 downto 0) <= ecmd;
 			when 2 => regout <= response(7 downto 0);
 			when 3 => regout <= response(15 downto 8);
 			when 4 => regout <= response(23 downto 16);
