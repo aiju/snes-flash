@@ -222,7 +222,7 @@ END SYN;
 -- Retrieval info: PRIVATE: CUR_DEDICATED_CLK STRING "c0"
 -- Retrieval info: PRIVATE: CUR_FBIN_CLK STRING "c0"
 -- Retrieval info: PRIVATE: DEVICE_SPEED_GRADE STRING "7"
--- Retrieval info: PRIVATE: DIV_FACTOR0 NUMERIC "1"
+-- Retrieval info: PRIVATE: DIV_FACTOR0 NUMERIC "3"
 -- Retrieval info: PRIVATE: DUTY_CYCLE0 STRING "50.00000000"
 -- Retrieval info: PRIVATE: EFF_OUTPUT_FREQ_VALUE0 STRING "100.000000"
 -- Retrieval info: PRIVATE: EXPLICIT_SWITCHOVER_COUNTER STRING "0"
@@ -247,10 +247,10 @@ END SYN;
 -- Retrieval info: PRIVATE: LVDS_PHASE_SHIFT_UNIT0 STRING "deg"
 -- Retrieval info: PRIVATE: MIG_DEVICE_SPEED_GRADE STRING "Any"
 -- Retrieval info: PRIVATE: MIRROR_CLK0 STRING "0"
--- Retrieval info: PRIVATE: MULT_FACTOR0 NUMERIC "2"
+-- Retrieval info: PRIVATE: MULT_FACTOR0 NUMERIC "6"
 -- Retrieval info: PRIVATE: NORMAL_MODE_RADIO STRING "1"
 -- Retrieval info: PRIVATE: OUTPUT_FREQ0 STRING "100.00000000"
--- Retrieval info: PRIVATE: OUTPUT_FREQ_MODE0 STRING "0"
+-- Retrieval info: PRIVATE: OUTPUT_FREQ_MODE0 STRING "1"
 -- Retrieval info: PRIVATE: OUTPUT_FREQ_UNIT0 STRING "MHz"
 -- Retrieval info: PRIVATE: PHASE_RECONFIG_FEATURE_ENABLED STRING "1"
 -- Retrieval info: PRIVATE: PHASE_RECONFIG_INPUTS_CHECK STRING "0"
@@ -353,7 +353,7 @@ END SYN;
 -- Retrieval info: GEN_FILE: TYPE_NORMAL pll.vhd TRUE
 -- Retrieval info: GEN_FILE: TYPE_NORMAL pll.ppf TRUE
 -- Retrieval info: GEN_FILE: TYPE_NORMAL pll.inc FALSE
--- Retrieval info: GEN_FILE: TYPE_NORMAL pll.cmp TRUE
+-- Retrieval info: GEN_FILE: TYPE_NORMAL pll.cmp FALSE
 -- Retrieval info: GEN_FILE: TYPE_NORMAL pll.bsf FALSE
 -- Retrieval info: GEN_FILE: TYPE_NORMAL pll_inst.vhd FALSE
 -- Retrieval info: LIB_FILE: altera_mf

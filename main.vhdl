@@ -36,8 +36,8 @@ architecture main of snes is
 	
 	signal sden : std_logic;
 	
-	type refcnt_t is range 0 to 63;
-	constant thresh : refcnt_t := 30;
+	type refcnt_t is range 0 to 127;
+	constant thresh : refcnt_t := 64;
 	signal rctr : refcnt_t;
 begin
 	process
@@ -52,18 +52,15 @@ begin
 		snesd0 <= snesd;
 		snesclk0 <= snesclk;
 		if snesclk0 = '0' then
-			if rctr = thresh then
-				refresh <= '1';
-			else
-				refresh <= '0';
+			if rctr < rctr'high then
 				rctr <= rctr + 1;
 			end if;
 		else
-			refresh <= '0';
 			rctr <= 0;
 		end if;
 	end process;
 
+	refresh <= '1' when rctr > 64 else '0';
 	pll0: entity work.pll port map(inclk, clk, reset);
 	ramclk <= clk;
 	mem0: entity work.mem port map(clk, reset, ramcke, ramcs, ramwe, ramcas, ramras, ramldqm, ramudqm, rama, ramba, ramdq, memmode, memen, romaddr, memdata, memstart, txstep, dmaaddr, txdata, refresh);

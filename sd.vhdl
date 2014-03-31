@@ -44,6 +44,8 @@ architecture main of sd is
 	signal datbuf : unsigned(3 downto 0);
 	type datastate_t is (IDLE, WAITDATA, DATA, CRC, TIMEERR);
 	signal datastate : datastate_t := IDLE;
+	type crc16_t is array(15 downto 0) of unsigned(3 downto 0);
+	signal crc16 : crc16_t;
 	signal nibble : std_logic;
 	signal nbyte : nbyte_t;
 	signal datago, datastop, dataclr, datafailed : std_logic;
@@ -78,10 +80,22 @@ begin
 	clkout <= '1' when (slow = '1' and div = X"FF") or (slow = '0' and div(1 downto 0) = "11") else '0';
 
 	process
+		variable v : unsigned(3 downto 0);
 	begin
 		wait until rising_edge(clk);
 		datatimeout <= datatimeout + 1;
 		txstep <= '0';
+		if clkin = '1' then
+			if datastate = DATA then
+				v := crc16(15) xor sddat0;
+			else
+				v := "0000";
+			end if;
+			crc16(12) <= crc16(11) xor v;
+			crc16 <= crc16(14 downto 0) & v;
+			crc16(5) <= crc16(4) xor v;
+			crc16(12) <= crc16(11) xor v;
+		end if;
 		case datastate is
 		when IDLE =>
 			if datago = '1' then
@@ -115,6 +129,7 @@ begin
 					txdata(3 downto 0) <= sddat0;
 					if nbyte = 511 then
 						datastate <= CRC;
+						datafailed <= '0';
 						txstart <= '0';
 						nbyte <= 0;
 					else
@@ -125,11 +140,13 @@ begin
 			end if;
 		when CRC =>
 			if clkin = '1' then
-				if nbyte = 16 then
+				if nbyte = 15 then
 					datastate <= IDLE;
-					datafailed <= '0';
 				else
 					nbyte <= nbyte + 1;
+				end if;
+				if crc16(15) /= sddat0 then
+					datafailed <= '1';
 				end if;
 			end if;
 		when TIMEERR =>
@@ -151,6 +168,7 @@ begin
 		cmdtimeout <= cmdtimeout + 1;
 		datago <= '0';
 		datastop <= '0';
+		dataclr <= '0';
 		case cmdstate is
 		when IDLE =>
 			sdcmd <= '1';
@@ -388,13 +406,14 @@ begin
 					regout(7) <= card;
 				end if;
 				regout(6) <= not card or failed or datafailed;
-				if card = '1' then
-					regout(5 downto 0) <= cmd;
-				end if;
-			when 1 => regout <= response(7 downto 0);
-			when 2 => regout <= response(15 downto 8);
-			when 3 => regout <= response(23 downto 16);
-			when 4 => regout <= response(31 downto 24);
+				regout(5) <= not card;
+				regout(4) <= datafailed;
+			when 1 =>
+				regout(5 downto 0) <= cmd;
+			when 2 => regout <= response(7 downto 0);
+			when 3 => regout <= response(15 downto 8);
+			when 4 => regout <= response(23 downto 16);
+			when 5 => regout <= response(31 downto 24);
 			when others =>
 			end case;
 		end if;

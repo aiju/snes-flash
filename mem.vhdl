@@ -22,17 +22,18 @@ end mem;
 architecture main of mem is
 	type state_t is (RESETCMD, IDLE, READCMD, WRITECMD, AUTOREFRESH);
 	signal curaddr : unsigned(22 downto 0);
-	signal buf : unsigned(7 downto 0);
+	signal buf, db : unsigned(7 downto 0);
 	signal state : state_t := RESETCMD;
-	type ctr_t is range 0 to 7;
+	type ctr_t is range 0 to 31;
 	constant tRCD : ctr_t := 2;
-	constant tCAS : ctr_t := 3;
+	constant tCAS : ctr_t := 2;
 	constant tRP : ctr_t := 1;
 	constant tRC : ctr_t := 5;
 	signal ctr : ctr_t;
 	signal stepped : std_logic;
 begin
-	data0 <= buf;
+	db <= dq(15 downto 8) when curaddr(0) = '1' else dq(7 downto 0);
+	data0 <= db when state = READCMD else buf;
 	cke <= '1';
 	process
 		variable sel : boolean;
@@ -57,21 +58,23 @@ begin
 				ras <= '0';
 				we <= '0';
 				a(10) <= '1';
-			when 1 | 3 =>
+			when 2 | 10 =>
 				ras <= '0';
 				cas <= '0';
-			when 5 =>
+			when 17 =>
+				a(5) <= '1';
+			when 18 =>
 				ras <= '0';
 				cas <= '0';
 				we <= '0';
 				a(5) <= '1';
-			when 6 =>
+			when 20 =>
 				state <= IDLE;
 			when others =>
 			end case;
 		when IDLE =>
 			sel := false;
-			cs <= '1';
+			--cs <= '1';
 			if refresh = '1' and (mode = '0' or start = '0') then
 				ctr <= 0;
 				cs <= '0';
@@ -103,17 +106,13 @@ begin
 		when READCMD =>
 			ctr <= ctr + 1;
 			case ctr is
-			when tRCD =>
+			when (tRCD - 1) | tRCD =>
 				cas <= '0';
 				ba <= curaddr(22 downto 21);
 				a(7 downto 0) <= curaddr(8 downto 1);
 				a(10) <= '1';
 			when tRCD+tCAS =>
-				if curaddr(0) = '1' then
-					buf <= dq(15 downto 8);
-				else
-					buf <= dq(7 downto 0);
-				end if;
+				buf <= db;
 				state <= IDLE;
 			when others =>
 			end case;
