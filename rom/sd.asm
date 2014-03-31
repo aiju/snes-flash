@@ -19,18 +19,22 @@ sderror:
 	rep #$10
 	sep #$20
 	lda SDSTAT
-	cmp #$40
-	bne +
+	bit #$20
+	beq +
 	ldx #_nocard
 	jsr puts
 	plp
 	rts
-
++	bit #$10
+	beq +
+	ldx #_crcerr
+	jsr puts
+	bra _pblk
 +	rep #$10
 	sep #$20
 	ldx #_error
 	jsr puts
-	lda SDSTAT
+	lda SDFAILED
 	and #$3F
 	jsr putbyte
 	ldx #_response
@@ -43,7 +47,7 @@ sderror:
 	jsr putbyte
 	lda SDRESP
 	jsr putbyte
-	ldx #_blk
+_pblk:	ldx #_blk
 	jsr puts
 	rep #$20
 	clc
@@ -93,5 +97,6 @@ _nocard: .ASC "NO CARD", 0
 _error: .ASC "CARD ERROR", 10, "CMD $", 0
 _response: .ASC 10, "RESPONSE ", 0
 _blk: .ASC 10, "BLOCK ", 0
+_crcerr: .ASC "CRC ERROR", 0
 
 .ENDS

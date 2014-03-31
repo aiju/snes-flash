@@ -70,6 +70,8 @@ consinit:
 	stz $4374
 	lda #$80
 	sta $420c
+	
+	stz update
 
 	lda #$81
 	sta $4200
@@ -100,9 +102,11 @@ vblank:
 	lda #PICSIZ
 	sta $4305
 	sep #$20
+	lda update
+	bne +
 	lda #$01
 	sta $420b
-
++
 	lda window
 	and #$20
 	eor #$30
