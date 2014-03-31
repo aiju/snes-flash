@@ -57,6 +57,8 @@ initfat:
 +	stx clsh
 
 	rep #$20
+	stz fat
+	stz fat+2
 	lda BREC+$00E
 	sta cloff
 	stz cloff+2
@@ -196,7 +198,16 @@ nextclust:
 	sta sdblk
 	bcc +
 	inc sdblk+2	
-+	lda sdaddr
++	cmp fat
+	bne ++
+	lda sdblk+2
+	cmp fat+2
+	beq +
+++	lda sdblk
+	sta fat
+	lda sdblk+2
+	sta fat+2
+	lda sdaddr
 	pha
 	LDADDR FAT
 	sta sdaddr
@@ -299,12 +310,92 @@ scandir:
 
 filename:
 	php
-	jsr sfn
+	sep #$20
+	stz lfn
+	jsr sfnsum
+	sta tmp
+	stz tmp+1
+
+	lda dent+2
+	sta ptr+2
+	rep #$20
+	lda dent
+	sta ptr
+	
+	lda #buf
+	sta tmp3
+
+-	rep #$20
+	lda ptr
+	sec
+	sbc #$20
+	sta ptr
+	bcs +
+	sep #$20
+	dec ptr+2
+	lda ptr+2
+	cmp #DIR>>16
+	rep #$20
+	bcc sfn
+
++	ldy #$B
+	lda [ptr],y
+	cmp #$F
+	bne sfn
+	ldy #$1A
+	lda [ptr],y
+	bne sfn
+	sep #$20
+	ldy #$D
+	lda [ptr],y
+	cmp tmp
+	bne sfn
+	lda [ptr]
+	beq sfn
+	cmp #$E5
+	beq sfn
+	and #$1F
+	inc tmp+1
+	cmp tmp+1
+	bne sfn
+	
+	rep #$20
+	ldy #$01
+	ldx #5
+	jsr _copy
+	ldy #$0E
+	ldx #6
+	jsr _copy
+	ldy #$1C
+	ldx #2
+	jsr _copy
+	
+	sep #$20
+	inc lfn
+	lda [ptr]
+	asl
+	bpl -
+	rep #$20
+	stz buf+510
 	plp
+	rts
+_copy:
+	lda [ptr],y
+	iny
+	iny
+	sta (tmp3)
+	lda tmp3
+	cmp #buf+510
+	bcs +
+	adc #2
+	sta tmp3
++	dex
+	bne _copy
 	rts
 
 sfn:
 	sep #$30
+	stz lfn
 	ldy #0
 	tyx
 	lda #'.'
@@ -336,6 +427,22 @@ sfn:
 	lda #0
 -	sta buf,y
 	iny
+	bne -
+	plp
+	rts
+
+sfnsum:
+	sep #$30
+	ldy #0
+	lda #0
+-	pha
+	lsr
+	pla
+	ror
+	clc
+	adc [dent],y
+	iny
+	cpy #11
 	bne -
 	rts
 
@@ -414,10 +521,46 @@ prevshown:
 	bcc -
 ++	plp
 	rts
+	
+putlfn:
+	php
+	rep #$30
+	stz tmp
+	ldy #$0
+-	lda buf,y
+	beq ++
+	bit #$FF80
+	beq +
+	lda #'?'
++	jsr putc
+	iny
+	iny
+	inc tmp
+	lda tmp
+	cmp #DISPNUM
+	bne -
+++	sep #$20
+	ldy #$B
+	lda [dent],y
+	and #$10
+	beq +
+	lda #'/'
+	jsr putc
++	rep #$20
+-	lda tmp
+	cmp #DISPNUM
+	bcs +
+	lda #' '
+	jsr putc
+	inc tmp
+	bra -
++	plp
+	rts
 
 redraw:
 	php
-	wai
+	sep #$20
+	inc update
 	rep #$30
 	ldx #NAMES
 	jsr move
@@ -431,26 +574,29 @@ redraw:
 	bcc +
 	jsr filename
 	jsr clrline
-	lda 1,s
-	cmp sel
-	bne +++
 	ldx #NAMES-1
 	jsr xmove
-	lda #'>'
+	ldx #' '
+	lda 1,s
+	cmp sel
+	bne ++
+	ldx #'>'
+++	txa
 	jsr putc
-	bra ++
-+++	ldx #NAMES
-	jsr xmove
-++	stz buf+DISPLEN
+	lda lfn
+	and #$FF
+	bne ++
+	stz buf+DISPLEN
 	ldx #buf
 	jsr puts
-	lda #$A
+	bra +++
+++	jsr putlfn
++++	lda #$A
 	jsr putc
 	dec tmp2
 	bne +
 	ply
-	plp
-	rts
+	bra ++
 +	ply
 	iny
 	iny
@@ -462,6 +608,8 @@ __	jsr clrline
 	jsr putc
 	dec tmp2
 	bne _b
+++	sep #$20
+	dec update
 	plp
 	rts
 
@@ -631,14 +779,13 @@ readrom:
 	ldy #$14
 	lda [dent],y
 	sta clust+2
--	wai
-	jsr readclust
+-	jsr readclust
 	bcs +
 	jsr nextclust
 	bcs +
 	jsr showprog
 	bit eof-1
-	bpl -
+	bpl -	
 	rts
 +	rep #$30
 	jsr box

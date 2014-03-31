@@ -17,12 +17,14 @@ ROMSIZE $05
 inf	DS 2
 tmp	DS 2
 tmp2	DS 2
+tmp3	DS 2
 ptr	DS 3
 dmactrl	DB
 
 pos	DS 3
 attrib	DB
 window	DB
+update	DB
 
 sdaddr	DS 2
 sdblk	DS 4
@@ -34,10 +36,12 @@ dir	DS 4
 clust	DS 4
 cloff	DS 4
 eof	DB
+fat	DS 4
 
 dirend	DS 3
 dpend	DS 3
 dent	DS 3
+lfn	DB
 
 scrtop	DS 3
 sel	DS 2
@@ -50,7 +54,7 @@ gamectl	DS 1
 size	DS 4
 rommask	DS 2
 
-buf	DS 256
+buf	DS 512
 .ENDE
 
 .EQU PICSIZ 1920
@@ -66,7 +70,7 @@ buf	DS 256
 .EQU DIRMAX 2048
 .EQU NAMEMAX 256
 .EQU DISPLEN 24
-.EQU DISPNUM 10
+.EQU DISPNUM 25
 
 .ENUM $7F0000
 pic	DS PICSIZ
@@ -78,7 +82,8 @@ dirp	DS DIRMAX*3+3
 .EQU SDCMD $3000
 .EQU RESETCMD 0
 .EQU READCMD 1
-.EQU SDRESP $3001
+.EQU SDFAILED $3001
+.EQU SDRESP $3002
 .EQU SDBLK $3001
 .EQU MEMMODE 1
 .EQU ROMDIS 2
