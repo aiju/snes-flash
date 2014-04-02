@@ -13,8 +13,14 @@ entity sd is
 		regaddr : in unsigned(3 downto 0);
 		regin: in unsigned(7 downto 0);
 		regout : out unsigned(7 downto 0);
-		txstart, txstep : out std_logic;
-		txdata : out unsigned(7 downto 0)
+		txstart : out std_logic := '0';
+		txstep : buffer std_logic;
+		txdata : out unsigned(7 downto 0);
+		txinstart : in std_logic;
+		txindata : in unsigned(7 downto 0);
+		wrblk : in unsigned(31 downto 0);
+		txdone, txerr : out std_logic;
+		card : buffer std_logic := '0'
 	);
 end sd;
 
@@ -24,12 +30,11 @@ architecture main of sd is
 	signal sdcd0, sdcd1, sdcmd0 : std_logic;
 	signal sddat0 : unsigned(3 downto 0);
 	signal cdctr : unsigned(23 downto 0);
-	signal card : std_logic := '0';
 	signal slow : std_logic := '1';
 	
-	type timeout_t is range 0 to 1048575;
-	signal cmdtimeout, datatimeout : timeout_t;
-	constant TIMEOUT : timeout_t := 1000000;
+	signal cmdtimeout, datatimeout : integer;
+	constant TIMEOUT : integer := 1000000;
+	constant WRITETIMEOUT : integer := 5000000;
 	type cmdstate_t is (IDLE, COMMAND, WAITRESP, RESP, RESP2, WAITBUSY, WAIT0, DONE, TIMEERR);
 	signal cmdstate : cmdstate_t := IDLE;
 	signal buf : unsigned(47 downto 0);
@@ -38,11 +43,11 @@ architecture main of sd is
 	signal cmd, ecmd : unsigned(5 downto 0);
 	constant NOOP : unsigned(5 downto 0) := "111111";
 	signal arg : unsigned(31 downto 0);
-	signal go, failed : std_logic;
+	signal go, failed, dir : std_logic;
 	
 	type nbyte_t is range 0 to 511;
-	signal datbuf : unsigned(3 downto 0);
-	type datastate_t is (IDLE, WAITDATA, DATA, CRC, TIMEERR);
+	signal datbuf, datbufl : unsigned(3 downto 0);
+	type datastate_t is (IDLE, WAITDATA, DATA, CRC, TIMEERR, STARTBIT, OUTDATA, OUTCRC, WAITRESP, RESP, WAITBUSY);
 	signal datastate : datastate_t := IDLE;
 	type crc16_t is array(15 downto 0) of unsigned(3 downto 0);
 	signal crc16 : crc16_t;
@@ -51,7 +56,7 @@ architecture main of sd is
 	signal datago, datastop, dataclr, datafailed : std_logic;
 
 	signal response : unsigned(31 downto 0);
-	type state_t is (NOCARD, RESET, IDLE, ERROR, READCMD, WAITDATA);
+	type state_t is (NOCARD, RESET, IDLE, ERROR, READCMD, WRITECMD, WAITDATA);
 	signal state : state_t := NOCARD;
 	signal hc : std_logic;
 	signal rca : unsigned(15 downto 0);
@@ -86,21 +91,17 @@ begin
 		wait until rising_edge(clk);
 		datatimeout <= datatimeout + 1;
 		txstep <= '0';
-		if clkin = '1' then
-			if datastate = DATA then
-				v := crc16(15) xor sddat0;
-			else
-				v := "0000";
-			end if;
-			crc16(12) <= crc16(11) xor v;
-			crc16 <= crc16(14 downto 0) & v;
-			crc16(5) <= crc16(4) xor v;
-			crc16(12) <= crc16(11) xor v;
-		end if;
+
 		case datastate is
 		when IDLE =>
+			txstart <= '0';
+			txdone <= '0';
 			if datago = '1' then
-				datastate <= WAITDATA;
+				if datago = '1' and dir = '1' then
+					datastate <= STARTBIT;
+				else
+					datastate <= WAITDATA;
+				end if;
 				datatimeout <= 0;
 			end if;
 			if dataclr = '1' then
@@ -151,10 +152,101 @@ begin
 					datafailed <= '1';
 				end if;
 			end if;
+		when STARTBIT =>
+			if clkout = '1' then
+				txstep <= '1';
+				datbuf <= txindata(7 downto 4);
+				datbufl <= txindata(3 downto 0);
+				sddat <= "0000";
+				datastate <= OUTDATA;
+				nibble <= '0';
+				nbyte <= 0;
+			end if;
+		when OUTDATA =>
+			if clkout = '1' then
+				sddat <= datbuf;
+				if nibble = '1' then
+					txstep <= '1';
+					datbuf <= txindata(7 downto 4);
+					datbufl <= txindata(3 downto 0);
+					if nbyte = 511 then
+						nbyte <= 0;
+						datastate <= OUTCRC;
+					else
+						nbyte <= nbyte + 1;
+					end if;
+				else
+					datbuf <= datbufl;
+				end if;
+				nibble <= not nibble;
+			end if;
+		when OUTCRC =>
+			if clkout = '1' then
+				nbyte <= nbyte + 1;
+				if nbyte = 17 then
+					datastate <= WAITRESP;
+					sddat <= "ZZZZ";
+					datatimeout <= 0;
+				elsif nbyte = 16 then
+					sddat <= "1111";
+				else
+					sddat <= crc16(15);
+				end if;
+			end if;
+		when WAITRESP =>
+			if datatimeout = TIMEOUT then
+				datastate <= TIMEERR;
+			end if;
+			if clkin = '1' then
+				if sddat0(0) = '0' then
+					datastate <= RESP;
+					nbyte <= 0;
+				end if;
+			end if;
+		when RESP =>
+			if clkin = '1' then
+				datbuf(integer(nbyte)) <= sddat0(0);
+				if nbyte = 3 then
+					if datbuf(2 downto 0) /= "010" then
+						datafailed <= '1';
+					else
+						datafailed <= '0';
+					end if;
+					if datbuf(2 downto 0) = "101" then
+						txerr <= '1';
+					else
+						txerr <= '0';
+					end if;
+					txdone <= '1';
+					datastate <= WAITBUSY;
+					datatimeout <= 0;
+				else
+					nbyte <= nbyte + 1;
+				end if;
+			end if;
+		when WAITBUSY =>
+			if datatimeout = WRITETIMEOUT then
+				datastate <= TIMEERR;
+			end if;
+			if clkin = '1' and sddat0(0) = '1' then
+				datastate <= IDLE;
+			end if;
 		when TIMEERR =>
 			datafailed <= '1';
 			datastate <= IDLE;
 		end case;
+		if (dir = '0' and clkin = '1') or (dir = '1' and clkout = '1') then
+			if datastate = DATA then
+				v := crc16(15) xor sddat0;
+			elsif datastate = OUTDATA then
+				v := crc16(15) xor datbuf;
+			else
+				v := "0000";
+			end if;
+			crc16 <= crc16(14 downto 0) & v;
+			crc16(5) <= crc16(4) xor v;
+			crc16(12) <= crc16(11) xor v;
+		end if;
 		if card = '0' or resetcmd = '1' then
 			datastate <= IDLE;
 			txstart <= '0';
@@ -263,6 +355,8 @@ begin
 					end if;
 					if cmd = "010001" and failed = '1' then
 						datastop <= '1';
+					elsif cmd = "011000" and failed = '0' then
+						datago <= '1';
 					else
 						dataclr <= '1';
 					end if;
@@ -383,6 +477,9 @@ begin
 			if readblk = '1' then
 				state <= READCMD;
 			end if;
+			if txinstart = '1' then
+				state <= WRITECMD;
+			end if;
 		when READCMD =>
 			if cmdstate = IDLE then
 				if hc = '1' then
@@ -392,6 +489,21 @@ begin
 				end if;
 				cmd <= "010001";
 				go <= '1';
+				dir <= '0';
+			end if;
+			if cmdstate = DONE then
+				state <= WAITDATA;
+			end if;
+		when WRITECMD =>
+			if cmdstate = IDLE then
+				if hc = '1' then
+					arg <= wrblk;
+				else
+					arg <= wrblk(22 downto 0) & "000000000";
+				end if;
+				cmd <= "011000";
+				go <= '1';
+				dir <= '1';
 			end if;
 			if cmdstate = DONE then
 				state <= WAITDATA;
@@ -413,7 +525,7 @@ begin
 			rca <= (others => '0');
 		end if;
 	end process;
-	
+
 	process
 	begin
 		wait until rising_edge(clk);
