@@ -20,6 +20,8 @@ tmp2	DS 2
 tmp3	DS 2
 ptr	DS 3
 dmactrl	DB
+sdmode	DB
+cardsw	DB
 
 pos	DS 3
 attrib	DB
@@ -48,13 +50,16 @@ sel	DS 2
 
 btn	DS 2
 bmask	DS 2
+key	DS 2
 
 smch	DS 1
 gamectl	DS 1
 size	DS 4
 rommask	DS 2
+rammask	DS 2
 
 buf	DS 512
+buf2	DS 512
 .ENDE
 
 .EQU PICSIZ 1920
@@ -88,9 +93,19 @@ dirp	DS DIRMAX*3+3
 .EQU MEMMODE 1
 .EQU ROMDIS 2
 .EQU HIROM 4
+.EQU SAVERAM 8
+.EQU RAMFLUSH 16
+.EQU NOCARD $20
 .EQU DMACTRL $3010
 .EQU DMAADDR $3011
 .EQU ROMMASK $3013
+.EQU RAMMASK $3015
+.EQU BLKADDR $3016
+.EQU RAMBLK $3017
+.EQU LOCK $301B
+.EQU MAGIC $1337
+.EQU NSRAM 16
+.EQU ROMMAX $c
 
 .EQU BREC $FF0000
 .EQU FAT $FF0200

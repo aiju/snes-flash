@@ -89,6 +89,13 @@ vblank:
 	phk
 	plb
 	
+	sep #$20
+	lda #NOCARD
+	bit SDSTAT
+	beq +
+	dec cardsw
++	rep #$20
+	
 	jsr region
 
 	stz $2116

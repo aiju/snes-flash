@@ -2,6 +2,10 @@
 
 .SECTION "CODE"
 mbr:
+	sep #$20
+	stz cardsw
+	lda #MEMMODE
+	sta sdmode
 	rep #$30
 	ldx #_mbrmsg
 	jsr puts
@@ -396,38 +400,44 @@ _copy:
 sfn:
 	sep #$30
 	stz lfn
+	ldx #0
 	ldy #0
-	tyx
-	lda #'.'
-	sta buf+8
+	sty tmp
 -	lda [dent],y
-	sta buf,y
+	sta buf,x
 	and #$DF
 	beq +
-	tyx
-+	iny
+	stx tmp
++	inx
+	stz buf,x
+	inx
+	iny
 	cpy #8
 	bne -
+	
+	lda #'.'
+	sta buf,x
+	inx
+	stz buf,x
+	inx
+
 -	lda [dent],y
 	iny
-	sta buf,y
+	sta buf,x
 	and #$DF
 	beq +
-	tyx
-+	cpy #11
+	stx tmp
++	inx
+	stz buf,x
+	inx
+	cpy #11
 	bne -
-	lda [dent],y
-	txy
-	and #$10
-	beq +
-	iny
-	lda #'/'
-	sta buf,y
-+	iny
-	lda #0
--	sta buf,y
-	iny
-	bne -
+
+	ldx tmp
+	inx
+	inx
+	rep #$20
+	stz buf,x
 	plp
 	rts
 
@@ -467,17 +477,33 @@ getdent:
 	
 isshown:
 	php
-	rep #$30
+	rep #$10
+	sep #$20
 	ldy #0
 	lda [dent],y
-	and #$FF
 	cmp #$2E
 	beq +
 	ldy #$B
 	lda [dent],y
-	and #$02
+	bit #$02
 	bne +
-	plp
+	bit #$10
+	bne ++
+	ldy #$8
+	lda [dent],y
+	cmp #'S'
+	bne +
+	ldy #$A
+	lda [dent],y
+	cmp #'C'
+	bne +
+	ldy #$9
+	lda [dent],y
+	cmp #'F'
+	beq ++
+	cmp #'M'
+	bne +
+++	plp
 	sec
 	rts
 +	plp
@@ -583,15 +609,8 @@ redraw:
 	ldx #'>'
 ++	txa
 	jsr putc
-	lda lfn
-	and #$FF
-	bne ++
-	stz buf+DISPLEN
-	ldx #buf
-	jsr puts
-	bra +++
-++	jsr putlfn
-+++	lda #$A
+	jsr putlfn
+	lda #$A
 	jsr putc
 	dec tmp2
 	bne +
@@ -785,14 +804,19 @@ readrom:
 	bcs +
 	jsr showprog
 	bit eof-1
-	bpl -	
+	bpl -
+	clc	
 	rts
 +	rep #$30
+	bit cardsw-1
+	bpl +
 	jsr box
 	jsr sderror
 	jsr waitkey
 	jsr readdir
-	jmp redraw
+	jsr redraw
++	sec
+	rts
 
 	
 _fsmsg: .ASC "FS ERROR", 0

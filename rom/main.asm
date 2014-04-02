@@ -3,12 +3,22 @@
 .SECTION "CODE"
 fatal:	jmp sdfatal
 main:
-	jsr consinit
+--	jsr consinit
 	rep #$30
 	ldx #title
 	jsr puts
 	jsr box
-	ldx #busystr
+	sep #$20
+	lda #NOCARD
+	bit SDSTAT
+	beq +
+	ldx #nocard
+	jsr puts
+	lda #NOCARD
+-	bit SDSTAT
+	bne -
+	jsr box
++	ldx #busystr
 	jsr puts
 	jsr busy
 	bcc +
@@ -17,13 +27,18 @@ main:
 	sta SDCMD
 	rep #$20
 	jsr busy
-+	jsr mbr
++	jsr sramflush
+	jsr sramdis
+	jsr sramflush
+	jsr mbr
 	jsr initfat
 	jsr endbox
 	jsr redraw
 
 poll	rep #$30
--	lda btn
+-	bit cardsw-1
+	bmi --
+	lda btn
 	beq -
 	pea poll-1
 	bit #BTNUP
@@ -70,7 +85,7 @@ loadgame:
 	beq ++
 	rep #$30
 	jsr box
-	ldx #hdmsg
+-	ldx #_hdmsg
 	jsr puts
 	jmp confirm
 +	rts
@@ -85,16 +100,37 @@ loadgame:
 	ldx #buf
 	jsr puts
 	jsr romregion
-	jsr waitkey
-	and #BTNA
+	jsr parseheader
+	bcc +
+	jmp confirm
++	jsr waitkey
+	bcc +
+	rts
++	and #BTNA
 	bne +
 	jmp endbox
 +	jsr box
 	ldx #busystr
 	jsr puts
-	jsr parseheader
-	jsr readrom
+	lda #SAVERAM
+	bit gamectl
+	beq +
+	lda rammask
+	beq +
+	jsr loadsave
+	bcc +
+	lda #SAVERAM
+	trb gamectl
+	lda #BTNA
+	bit key
+	bne +
+	jmp endbox
++	jsr readrom
+	bcc +
 	jsr endbox
+	rts
++	jsr endbox
+	
 	rep #$30
 	ldx #gamestart
 	ldy #buf
@@ -105,10 +141,25 @@ loadgame:
 	stz $4200
 	stz $420c
 	lda $4210
-
+	
+	lda #SAVERAM
+	bit gamectl
+	beq +
 	rep #$20
+	lda #MAGIC
+	sta LOCK
+	sep #$20
+	lda dmactrl
+	ora #SAVERAM
+	sta DMACTRL
+	rep #$20
+	stz LOCK
+
++	rep #$20
 	lda rommask
 	sta ROMMASK
+	lda rammask
+	sta RAMMASK
 	jmp buf
 
 romregion:
@@ -123,7 +174,7 @@ romregion:
 	plp
 	rts
 +	cmp #$D
-	bne +
+	beq +
 	cmp #$2
 	bcc +
 	ldx #_pal
@@ -136,23 +187,57 @@ _ntsc:	.ASC "NTSC", 10, 0
 
 mask:
 	php
-	rep #$20
+	rep #$30
+	and #$FF
+	beq +
+	tax
 	lda #$4
 -	asl
 	dex
 	bne -
 	dea
-	plp
++	plp
 	rts
 	
 parseheader:
 	php
-	rep #$20
+	rep #$30
 	lda HEAD+$1D7
-	tax
-	jsr mask
+	and #$FF
+	bne ++
+	ldx #_hdmsg
+	jsr puts
+	bra +
+++	cmp #ROMMAX+1
+	bcc ++
+	ldx #_roml
+	jsr puts
+	bra +
+++	jsr mask
 	sta rommask
+	lda HEAD+$1D8
+	jsr mask
+	cmp #NSRAM*2
+	bcc ++
+	ldx #_raml
+	jsr puts
+	bra +
+++	sta rammask
+	sep #$20
+	lda HEAD+$1D6
+	cmp #$3
+	bcs +
+	cmp #$2
+	bne ++
+	lda #SAVERAM
+	tsb gamectl 
+++	lda #ROMDIS
+	tsb gamectl
 	plp
+	clc
+	rts
++	plp
+	sec
 	rts
 
 waitkey:
@@ -160,12 +245,21 @@ waitkey:
 	rep #$20
 	wai
 	lda #(BTNA|BTNB)
--	bit btn
+-	bit cardsw-1
+	bmi +
+	bit btn
 	beq -
 	lda btn
+	sta key
 	wai
 	plp
+	clc
 	rts
++	stz key
+	plp
+	sec
+	rts
+	
 	
 confirm:
 	jsr waitkey
@@ -183,10 +277,21 @@ showprog:
 	plp
 	rts
 	
+loadsave:
+	jsr filename
+	jsr modname
+	jsr openfile
+	bcs +
+	jsr readin
+	bcs +
+	clc
+	rts
++	sec
+	rts
+	
 gamestart:
 	sep #$30
 	lda gamectl
-	ora #ROMDIS
 	sta DMACTRL
 	sec
 	xce
@@ -195,5 +300,8 @@ gameend:
 
 title: .ASC 10, " SNES FLASH CART", 0
 busystr: .ASC "BUSY", 10, 0
-hdmsg: .ASC "INVALID HEADER", 0
+_hdmsg: .ASC 10, "INVALID HEADER", 0
+_roml: .ASC 10, "GAME REQUIRES", 10, "TOO MUCH ROM", 0
+_raml: .ASC 10, "GAME REQUIRES", 10, "TOO MUCH SRAM", 0
+_cont: .ASC 10, 10, "PRESS A TO CONTINUE", 0
 .ENDS

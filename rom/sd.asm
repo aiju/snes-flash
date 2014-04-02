@@ -7,6 +7,8 @@ busy:
 -	bit SDSTAT
 	bmi -
 	bvs +
+	bit cardsw-1
+	bmi +
 	plp
 	clc
 	rts
@@ -19,9 +21,9 @@ sderror:
 	rep #$10
 	sep #$20
 	lda SDSTAT
-	bit #$20
+	bit #NOCARD
 	beq +
-	ldx #_nocard
+	ldx #nocard
 	jsr puts
 	plp
 	rts
@@ -62,6 +64,42 @@ _pblk:	ldx #_blk
 	plp
 	rts
 
+sramflush:
+	php
+	sep #$20
+	lda dmactrl
+	ora #RAMFLUSH
+	sta DMACTRL
+-	bit DMACTRL
+	bpl -
+	plp
+	sec
+	rts
+	
+sramdis:
+	php
+	rep #$20
+	lda #MAGIC
+	sta LOCK
+	sep #$20
+	lda dmactrl
+	sta DMACTRL
+	lda #0
+-	sta BLKADDR
+	rep #$20
+	lda #$FFFF
+	sta RAMBLK
+	sta RAMBLK+2
+	sep #$20
+	lda BLKADDR
+	ina
+	cmp #NSRAM
+	bcc -
+	rep #$20
+	stz LOCK
+	plp
+	rts
+
 sdfatal:
 	jsr box
 	jsr sderror
@@ -81,7 +119,7 @@ sdread:
 	sta SDBLK+2
 	sep #$20
 	lda dmactrl
-	ora #MEMMODE
+	ora sdmode
 	sta DMACTRL
 	lda #READCMD
 	sta SDCMD
@@ -93,7 +131,7 @@ sdread:
 	ror tmp
 	rts
 
-_nocard: .ASC "NO CARD", 0
+nocard: .ASC "NO CARD", 0
 _error: .ASC "CARD ERROR", 10, "CMD $", 0
 _response: .ASC 10, "RESPONSE ", 0
 _blk: .ASC 10, "BLOCK ", 0

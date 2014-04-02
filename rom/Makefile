@@ -6,6 +6,7 @@ OBJ=\
 	cons.o\
 	sd.o\
 	fs.o\
+	fs2.o\
 
 all: rom.mif
 

@@ -82,6 +82,7 @@ init:
 	rep #$20
 	lda #$FFFF
 	sta ROMMASK
+	sta RAMMASK
 	lda #$FE80
 	sta inf
 
