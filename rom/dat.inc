@@ -49,6 +49,7 @@ dent	DS 3
 lfn	DB
 
 scrtop	DS 3
+scrbot	DS 2
 sel	DS 2
 
 btn	DS 2
@@ -82,8 +83,8 @@ buf2	DS 512
 
 .EQU DIRMAX 2048
 .EQU NAMEMAX 256
-.EQU DISPLEN 24
-.EQU DISPNUM 25
+.EQU DISPLEN 26
+.EQU DISPNUM 20
 
 .ENUM $7F0000
 pic	DS PICSIZ

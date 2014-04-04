@@ -461,7 +461,10 @@ sfnsum:
 getdent:
 	php
 	rep #$30
-	phy
+	tya
+	bpl +
+	dec scrtop+2
++	phy
 	lda [scrtop],y
 	sta dent
 	iny
@@ -470,7 +473,9 @@ getdent:
 	lda [scrtop],y
 	sta dent+2
 	ply
-	ora dent
+	bpl +
+	inc scrtop+2
++	ora dent
 	ora dent+1
 	xba
 	plp
@@ -520,10 +525,8 @@ nextshown:
 	iny
 	jsr getdent
 	bne +
-	dey
-	dey
-	dey
-	bra ++
+	plp
+	jmp prevshown
 +	phy
 	jsr isshown
 	ply
@@ -537,7 +540,11 @@ prevshown:
 -	dey
 	dey
 	dey
-	bmi +++
+	tya
+	clc
+	adc scrtop
+	cmp #dirp & $FFFF
+	bcc +++
 	jsr getdent
 	bne +
 +++	plp
@@ -565,7 +572,7 @@ putlfn:
 	iny
 	inc tmp
 	lda tmp
-	cmp #DISPNUM
+	cmp #DISPLEN
 	bne -
 ++	sep #$20
 	ldy #$B
@@ -576,7 +583,7 @@ putlfn:
 	jsr putc
 +	rep #$20
 -	lda tmp
-	cmp #DISPNUM
+	cmp #DISPLEN
 	bcs +
 	lda #' '
 	jsr putc
@@ -597,6 +604,7 @@ redraw:
 	ldy #$0
 -	jsr getdent
 	beq _f
+	sty scrbot
 	phy
 	jsr isshown
 	bcc +

@@ -36,6 +36,7 @@ main:
 	jsr redraw
 
 poll	rep #$30
+	wai
 -	bit cardsw-1
 	bmi --
 	lda btn
@@ -54,11 +55,32 @@ poll	rep #$30
 _up	ldy sel
 	jsr prevshown
 	sty sel
-	jmp redraw
+	cpy #0
+	bpl +
+	tya
+	clc
+	adc scrtop
+	sta scrtop
+	stz sel
++	jmp redraw
 _down	ldy sel
 	jsr nextshown
 	sty sel
-	jmp redraw
+	cpy scrbot
+	bcc +
+	beq +
+	ldy #0
+	jsr nextshown
+	tya
+	sta tmp
+	clc
+	adc scrtop
+	sta scrtop
+	lda sel
+	sec
+	sbc tmp
+	sta sel
++	jmp redraw
 
 loadgame:
 	rep #$30
@@ -293,5 +315,4 @@ busystr: .ASC "BUSY", 10, 0
 _hdmsg: .ASC 10, "INVALID HEADER", 0
 _roml: .ASC 10, "GAME REQUIRES", 10, "TOO MUCH ROM", 0
 _raml: .ASC 10, "GAME REQUIRES", 10, "TOO MUCH SRAM", 0
-_cont: .ASC 10, 10, "PRESS A TO CONTINUE", 0
 .ENDS
