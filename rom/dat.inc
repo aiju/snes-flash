@@ -26,7 +26,10 @@ cardsw	DB
 pos	DS 3
 attrib	DB
 window	DB
+baron	DB
 update	DB
+prog	DS 2
+progst	DS 2
 
 sdaddr	DS 2
 sdblk	DS 4
@@ -69,6 +72,11 @@ buf2	DS 512
 .EQU BOXH 10
 .EQU BOX BOXL | (BOXT << 8)
 .EQU NAMES $0303
+
+.EQU BARL 16
+.EQU BART 128
+.EQU BARW 224
+.EQU BARH 16
 
 .EQU REGLOC 2*64 - 10
 

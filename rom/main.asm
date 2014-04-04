@@ -130,7 +130,7 @@ loadgame:
 	jsr endbox
 	rts
 +	jsr endbox
-	
+
 	rep #$30
 	ldx #gamestart
 	ldy #buf
@@ -267,16 +267,6 @@ confirm:
 	sec
 	rts
 
-showprog:
-	php
-	rep #$30
-	ldx #BOX
-	jsr move
-	lda sdaddr
-	jsr putword
-	plp
-	rts
-	
 loadsave:
 	jsr filename
 	jsr modname

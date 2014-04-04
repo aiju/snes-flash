@@ -97,6 +97,8 @@ createfile:
 	rep #$10
 	ldx #_nofile
 	jsr puts
+	jsr waitkey
+	plp
 	sec
 	rts
 _nofile: .ASC "NO SAVE", 0
@@ -114,6 +116,7 @@ _sde:
 
 checkclust:
 	rep #$20
+	
 	lda clsiz
 	and #$FF
 	sta tmp
@@ -146,6 +149,7 @@ checkclust:
 +	rep #$10
 	ldx #_nofile
 	jsr puts
+	plp
 	sec
 	rts
 ++	plp

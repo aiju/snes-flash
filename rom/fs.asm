@@ -380,6 +380,8 @@ filename:
 	asl
 	bpl -
 	rep #$20
+	lda #0
+	sta (tmp3)
 	stz buf+510
 	plp
 	rts
@@ -798,6 +800,8 @@ readrom:
 	ldy #$14
 	lda [dent],y
 	sta clust+2
+	jsr endbox
+	jsr bar
 -	jsr readclust
 	bcs +
 	jsr nextclust
@@ -805,9 +809,11 @@ readrom:
 	jsr showprog
 	bit eof-1
 	bpl -
+	jsr endbar
 	clc	
 	rts
 +	rep #$30
+	jsr endbar
 	bit cardsw-1
 	bpl +
 	jsr box

@@ -7,6 +7,7 @@ consinit:
 	sep #$30
 	stz attrib
 	stz window
+	stz baron
 	rep #$10
 	lda #<pic
 	sta pos
@@ -115,6 +116,7 @@ vblank:
 	sta $420b
 +
 	lda window
+	ora baron
 	and #$20
 	eor #$30
 	sta $2130
@@ -136,9 +138,7 @@ vblank:
 	ply
 	plx
 	pla
-	rti
-noop:
-	rti
+noop	rti
 
 region:
 	rep #$10
@@ -307,7 +307,10 @@ xmove:
 box:
 	php
 	sep #$20
-	lda window
+	lda baron
+	beq +
+	jsr endbar
++	lda window
 	bne +
 	dec window
 	rep #$30
@@ -357,6 +360,59 @@ endbox:
 	plb
 +	plp
 	rts
+	
+bar:
+	php
+	rep #$30
+	ldx #bardata
+	ldy #buf2
+	lda #10
+	mvn 0, 0
+	sep #$20
+	lda #<buf2
+	sta $4372
+	lda #>buf2
+	sta $4373
+	dec baron
+	
+	rep #$20
+	sep #$10
+	ldx clsh
+	lda #BARW*2
+-	asl
+	dex
+	bne -
+	sta progst
+	stz prog
+	plp
+	rts
+
+showprog:
+	php
+	rep #$20
+	lda prog
+	adc progst
+-	sec
+	sbc size+1
+	bcc +
+	inc buf2+5
+	bra -
++	adc size+1
+	sta prog
+	plp
+	rts
+
+endbar:
+	php
+	sep #$20
+	stz baron
+	wai
+	lda #<windowdata
+	sta $4372
+	lda #>windowdata
+	sta $4373
+	plp
+	rts
 
 windowdata:
 	.db BOXT*8-1, $FF, $00
@@ -364,12 +420,11 @@ windowdata:
 	.db $01, $FF, $00
 	.db $00
 
-die:
-	jsr box
-	rep #$10
-	plx
-	jsr puts
-	jmp loop
+bardata:
+	.db BART-1, $FF, $00
+	.db BARH, BARL, BARL-1
+	.db $01, $FF, $00
+	.db $00
 
 nope:
 	rep #$10
