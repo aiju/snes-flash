@@ -37,8 +37,7 @@ architecture main of snes is
 	
 	signal sden : std_logic;
 	
-	type refcnt_t is range 0 to 127;
-	constant thresh : refcnt_t := 64;
+	type refcnt_t is range 0 to 255;
 	signal rctr : refcnt_t;
 begin
 	process
@@ -61,7 +60,7 @@ begin
 		end if;
 	end process;
 
-	refresh <= '1' when rctr > 64 else '0';
+	refresh <= '1' when rctr > 110 and rctr < 145 else '0';
 	pll0: entity work.pll port map(inclk, clk, reset);
 	ramclk <= clk;
 	mem0: entity work.mem port map(clk, reset, ramcke, ramcs, ramwe, ramcas, ramras, ramldqm, ramudqm, rama, ramba, ramdq, memmode, memen, romaddr, memdata, txstart, txstep, dmaaddr, txdata, refresh);
@@ -77,5 +76,5 @@ begin
 	snesdir <= cartrd;
 
 	sd0: entity work.sd port map(clk, sdclk, sdcd, sdcmd, sddat, sden and not snesrd0, sden and sneswr0 and not sneswr1, snesa0(3 downto 0), snesd0, sdreg, txstart, txstep, txdata, txinstart, txindata, wrblk, txdone, txerr, card);
-	dma0: entity work.dma port map(clk, snesreset0, snesa0, snesd0, dmareg, not snesrd0, not sneswr0, not snescart0, romaddr, dmaaddr, memen, sden, dmaen, memmode, txstart, txstep, txdata, txinstart, txindata, wrblk, txdone, txerr, card);
+	dma0: entity work.dma port map(clk, snesreset0, snesa0, snesd0, dmareg, not snesrd0, sneswr0 and not sneswr1, not snescart0, romaddr, dmaaddr, memen, sden, dmaen, memmode, txstart, txstep, txdata, txinstart, txindata, wrblk, txdone, txerr, card);
 end main;

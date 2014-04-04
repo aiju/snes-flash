@@ -246,8 +246,8 @@ begin
 	datout <= regout when regen = '1' else ramout;
 	sden <= booten when (addr and X"40FFF0") = X"003000" else '0';
 	regen <= booten when (addr and X"40FFF0") = X"003010" else '0';
-	sramen <= snesreset and not addr(15) and addr(21) and
-		((hirom and addr(14) and addr(13) and not cart) or (not hirom and addr(20) and addr(22) and cart));
+	sramen <= snesreset and addr(21) and
+		((hirom and addr(14) and addr(13) and not addr(22) and not cart) or (not hirom and addr(20) and addr(22) and not addr(15) and cart));
 	dmaen <= regen or sramen;
 	memen <= (rd and cart) when booten = '0' or addr(23 downto 16) /= "00000000" else '0';
 end main;
