@@ -126,6 +126,7 @@ readdir:
 	ora #ROMOFF>>8
 	sta dirend+1
 	jsr scandir
+	jsr sort
 	lda #$7F00
 	sta scrtop+1
 	lda #dirp&$FFFF
@@ -285,11 +286,9 @@ scandir:
 	beq +
 	ldy #$B
 	lda [ptr],y
-	cmp #$0F
-	beq ++
 	and #$C8
 	bne +
-++	lda ptr+2
+	lda ptr+2
 	ldy #$2
 	sta [dpend],y
 	rep #$20
@@ -311,152 +310,6 @@ scandir:
 	sep #$20
 	inc ptr+2
 	bra --
-
-filename:
-	php
-	sep #$20
-	stz lfn
-	jsr sfnsum
-	sta tmp
-	stz tmp+1
-
-	lda dent+2
-	sta ptr+2
-	rep #$20
-	lda dent
-	sta ptr
-	
-	lda #buf
-	sta tmp3
-
--	rep #$20
-	lda ptr
-	sec
-	sbc #$20
-	sta ptr
-	bcs +
-	sep #$20
-	dec ptr+2
-	lda ptr+2
-	cmp #DIR>>16
-	rep #$20
-	bcc sfn
-
-+	ldy #$B
-	lda [ptr],y
-	cmp #$F
-	bne sfn
-	ldy #$1A
-	lda [ptr],y
-	bne sfn
-	sep #$20
-	ldy #$D
-	lda [ptr],y
-	cmp tmp
-	bne sfn
-	lda [ptr]
-	beq sfn
-	cmp #$E5
-	beq sfn
-	and #$1F
-	inc tmp+1
-	cmp tmp+1
-	bne sfn
-	
-	rep #$20
-	ldy #$01
-	ldx #5
-	jsr _copy
-	ldy #$0E
-	ldx #6
-	jsr _copy
-	ldy #$1C
-	ldx #2
-	jsr _copy
-	
-	sep #$20
-	inc lfn
-	lda [ptr]
-	asl
-	bpl -
-	rep #$20
-	lda #0
-	sta (tmp3)
-	stz buf+510
-	plp
-	rts
-_copy:
-	lda [ptr],y
-	iny
-	iny
-	sta (tmp3)
-	lda tmp3
-	cmp #buf+510
-	bcs +
-	adc #2
-	sta tmp3
-+	dex
-	bne _copy
-	rts
-
-sfn:
-	sep #$30
-	stz lfn
-	ldx #0
-	ldy #0
-	sty tmp
--	lda [dent],y
-	sta buf,x
-	and #$DF
-	beq +
-	stx tmp
-+	inx
-	stz buf,x
-	inx
-	iny
-	cpy #8
-	bne -
-	
-	lda #'.'
-	sta buf,x
-	inx
-	stz buf,x
-	inx
-
--	lda [dent],y
-	iny
-	sta buf,x
-	and #$DF
-	beq +
-	stx tmp
-+	inx
-	stz buf,x
-	inx
-	cpy #11
-	bne -
-
-	ldx tmp
-	inx
-	inx
-	rep #$20
-	stz buf,x
-	plp
-	rts
-
-sfnsum:
-	sep #$30
-	ldy #0
-	lda #0
--	pha
-	lsr
-	pla
-	ror
-	clc
-	adc [dent],y
-	iny
-	cpy #11
-	bne -
-	rts
 
 getdent:
 	php
@@ -520,13 +373,14 @@ isshown:
 nextshown:
 	php
 	rep #$30
+	sta tmp
 -	iny
 	iny
 	iny
 	jsr getdent
 	bne +
-	plp
-	jmp prevshown
+	lda tmp
+	bra ++
 +	phy
 	jsr isshown
 	ply
@@ -537,6 +391,7 @@ nextshown:
 prevshown:
 	php
 	rep #$30
+	sta tmp
 -	dey
 	dey
 	dey
@@ -544,12 +399,11 @@ prevshown:
 	clc
 	adc scrtop
 	cmp #dirp & $FFFF
-	bcc +++
-	jsr getdent
-	bne +
-+++	plp
-	jmp nextshown
+	bcs +
+	lda tmp
 	bra ++
++	jsr getdent
+	bne +
 +	phy
 	jsr isshown
 	ply

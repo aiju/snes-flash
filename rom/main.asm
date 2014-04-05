@@ -11,23 +11,21 @@ main:
 	sep #$20
 	lda #NOCARD
 	bit SDSTAT
-	beq +
+	beq ++
 	ldx #nocard
 	jsr puts
 	lda #NOCARD
 -	bit SDSTAT
 	bne -
 	jsr box
+	bra +
+++	lda #RESETCMD
+	sta SDCMD
 +	ldx #busystr
 	jsr puts
-	jsr busy
-	bcc +
-	sep #$20
-	lda #RESETCMD
-	sta SDCMD
 	rep #$20
 	jsr busy
-+	jsr sramflush
+	jsr sramflush
 	jsr sramdis
 	jsr sramflush
 	jsr mbr

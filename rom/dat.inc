@@ -19,6 +19,7 @@ tmp	DS 2
 tmp2	DS 2
 tmp3	DS 2
 ptr	DS 3
+ptr2	DS 3
 dmactrl	DB
 sdmode	DB
 cardsw	DB
@@ -46,6 +47,7 @@ fat	DS 4
 dirend	DS 3
 dpend	DS 3
 dent	DS 3
+dirptr	DS 3
 lfn	DB
 
 scrtop	DS 3
@@ -62,8 +64,8 @@ size	DS 4
 rommask	DS 2
 rammask	DS 2
 
-buf	DS 512
-buf2	DS 512
+buf	DS 514
+buf2	DS 514
 .ENDE
 
 .EQU PICSIZ 1920

@@ -4,10 +4,7 @@
 modname:
 	php
 	rep #$30
-	ldx #buf
-	ldy #buf2
-	lda #512
-	mvn 0, 0
+	jsr strcpy
 	
 	ldx #-2
 	ldy #-1
@@ -97,7 +94,6 @@ createfile:
 	rep #$10
 	ldx #_nofile
 	jsr puts
-	jsr waitkey
 	plp
 	sec
 	rts

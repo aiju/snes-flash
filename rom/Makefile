@@ -7,6 +7,7 @@ OBJ=\
 	sd.o\
 	fs.o\
 	fs2.o\
+	name.o\
 
 all: rom.mif
 
