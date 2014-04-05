@@ -107,6 +107,9 @@ begin
 			if dataclr = '1' then
 				datafailed <= '0';
 			end if;
+			if datastop = '1' and txinstart = '1' then
+				txdone <= '1';
+			end if;
 		when WAITDATA =>
 			if datatimeout = TIMEOUT then
 				datastate <= TIMEERR;
@@ -197,6 +200,11 @@ begin
 			if datatimeout = TIMEOUT then
 				datastate <= TIMEERR;
 			end if;
+			if datastop = '1' then
+				datastate <= IDLE;
+				datafailed <= '0';
+				txdone <= '1';
+			end if;
 			if clkin = '1' then
 				if sddat0(0) = '0' then
 					datastate <= RESP;
@@ -212,12 +220,6 @@ begin
 					else
 						datafailed <= '0';
 					end if;
-					if datbuf(2 downto 0) = "101" then
-						txerr <= '1';
-					else
-						txerr <= '0';
-					end if;
-					txdone <= '1';
 					datastate <= WAITBUSY;
 					datatimeout <= 0;
 				else
@@ -228,8 +230,14 @@ begin
 			if datatimeout = WRITETIMEOUT then
 				datastate <= TIMEERR;
 			end if;
+			if datastop = '1' then
+				datastate <= IDLE;
+				datafailed <= '0';
+				txdone <= '1';
+			end if;
 			if clkin = '1' and sddat0(0) = '1' then
 				datastate <= IDLE;
+				txdone <= '1';
 			end if;
 		when TIMEERR =>
 			datafailed <= '1';
@@ -250,9 +258,11 @@ begin
 		if card = '0' or resetcmd = '1' then
 			datastate <= IDLE;
 			txstart <= '0';
-			datafailed <= '0';
+			datafailed <= '1';
+			txdone <= '1';
 		end if;
 	end process;
+	txerr <= '1' when state = NOCARD else failed or datafailed;
 
 	process
 		variable err : std_logic;
