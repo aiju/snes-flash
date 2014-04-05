@@ -212,6 +212,9 @@ begin
 					txinstart <= '0';
 				end if;
 			end if;
+			if txdone = '1' then
+				state <= WAITDONE;
+			end if;
 		when WAITDONE =>
 			if txdone = '1' then
 				if txerr = '1' then
