@@ -373,13 +373,13 @@ isshown:
 nextshown:
 	php
 	rep #$30
-	sta tmp
+	sty tmp
 -	iny
 	iny
 	iny
 	jsr getdent
 	bne +
-	lda tmp
+	ldy tmp
 	bra ++
 +	phy
 	jsr isshown
@@ -391,7 +391,7 @@ nextshown:
 prevshown:
 	php
 	rep #$30
-	sta tmp
+	sty tmp
 -	dey
 	dey
 	dey
@@ -400,7 +400,7 @@ prevshown:
 	adc scrtop
 	cmp #dirp & $FFFF
 	bcs +
-	lda tmp
+	ldy tmp
 	bra ++
 +	jsr getdent
 	bne +
