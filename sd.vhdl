@@ -33,8 +33,8 @@ architecture main of sd is
 	signal slow : std_logic := '1';
 	
 	signal cmdtimeout, datatimeout : integer;
-	constant TIMEOUT : integer := 1000000;
-	constant WRITETIMEOUT : integer := 5000000;
+	constant TIMEOUT : integer := 1000 * 1000;
+	constant WRITETIMEOUT : integer := 10 * TIMEOUT;
 	type cmdstate_t is (IDLE, COMMAND, WAITRESP, RESP, RESP2, WAITBUSY, WAIT0, DONE, TIMEERR);
 	signal cmdstate : cmdstate_t := IDLE;
 	signal buf : unsigned(47 downto 0);
@@ -199,6 +199,7 @@ begin
 		when WAITRESP =>
 			if datatimeout = TIMEOUT then
 				datastate <= TIMEERR;
+				txdone <= '1';
 			end if;
 			if datastop = '1' then
 				datastate <= IDLE;
@@ -229,6 +230,7 @@ begin
 		when WAITBUSY =>
 			if datatimeout = WRITETIMEOUT then
 				datastate <= TIMEERR;
+				txdone <= '1';
 			end if;
 			if datastop = '1' then
 				datastate <= IDLE;
