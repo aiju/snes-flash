@@ -663,6 +663,7 @@ readrom:
 	lda [dent],y
 	sta clust+2
 	jsr endbox
+readfile:
 	jsr bar
 -	jsr readclust
 	bcs +

@@ -67,8 +67,11 @@ openfile:
 -	rep #$20
 	lda dent+1
 	cmp dirend+1
-	beq createfile
-	sep #$30
+	bne +
+	plp
+	sec
+	rts
++	sep #$30
 	lda [dent]
 	beq +
 	cmp #$E5
@@ -80,7 +83,10 @@ openfile:
 	jsr filename
 	jsr namecmp
 	rep #$30
-	beq checkclust
+	bne +
+	plp
+	clc
+	rts
 +	rep #$20
 	lda dent
 	clc
@@ -111,6 +117,7 @@ _sde:
 	rts
 
 checkclust:
+	php
 	rep #$20
 	
 	lda clsiz

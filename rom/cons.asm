@@ -126,7 +126,10 @@ vblank:
 	bne -
 	rep #$20
 	lda $4218
-	pha
+	bit #$F
+	beq +
+	lda #$0
++	pha
 	and bmask
 	sta btn
 	pla
@@ -263,6 +266,21 @@ clrline:
 	rep #$20
 	pla
 	sta pos
+	plp
+	rts
+	
+clrscreen:
+	php
+	rep #$30
+	inc update
+	ldx #0
+	lda #0
+-	sta pic,x
+	inx
+	inx
+	cpx #PICSIZ
+	bne -
+	dec update
 	plp
 	rts
 

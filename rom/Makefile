@@ -8,6 +8,7 @@ OBJ=\
 	fs.o\
 	fs2.o\
 	name.o\
+	flash.o\
 
 all: rom.mif
 

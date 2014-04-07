@@ -49,6 +49,11 @@ poll	rep #$30
 	bit #BTNB
 	beq +
 	jmp parent
++	lda $4218
+	and #BTNFLASH
+	eor #BTNFLASH
+	bne +
+	jmp flash
 +	rts
 _up	ldy sel
 	jsr prevshown
@@ -291,6 +296,9 @@ loadsave:
 	jsr filename
 	jsr modname
 	jsr openfile
+	bcc +
+	jsr createfile
++	jsr checkclust
 	bcs +
 	jsr readin
 	bcs +
