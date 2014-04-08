@@ -21,7 +21,10 @@ entity snes is
 		sdclk : out std_logic;
 		sdcmd : inout std_logic;
 		sddat : inout unsigned(3 downto 0);
-		sdcd : in std_logic
+		sdcd : in std_logic;
+		
+		spice, spisck, spisi : out std_logic;
+		spiso : in std_logic
 	);
 end snes;
 
@@ -76,5 +79,5 @@ begin
 	snesdir <= cartrd;
 
 	sd0: entity work.sd port map(clk, sdclk, sdcd, sdcmd, sddat, sden and not snesrd0, sden and sneswr0 and not sneswr1, snesa0(3 downto 0), snesd0, sdreg, txstart, txstep, txdata, txinstart, txindata, wrblk, txdone, txerr, card);
-	dma0: entity work.dma port map(clk, snesreset0, snesa0, snesd0, dmareg, not snesrd0, sneswr0 and not sneswr1, not snescart0, romaddr, dmaaddr, memen, sden, dmaen, memmode, txstart, txstep, txdata, txinstart, txindata, wrblk, txdone, txerr, card);
+	dma0: entity work.dma port map(clk, snesreset0, snesa0, snesd0, dmareg, not snesrd0, sneswr0 and not sneswr1, not snescart0, romaddr, dmaaddr, memen, sden, dmaen, memmode, txstart, txstep, txdata, txinstart, txindata, wrblk, txdone, txerr, card, spice, spisck, spisi, spiso);
 end main;

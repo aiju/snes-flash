@@ -26,7 +26,11 @@ entity dma is
 		txindata : out unsigned(7 downto 0);
 		wrblk : out unsigned(31 downto 0);
 		
-		txdone, txerr, card : in std_logic
+		txdone, txerr, card : in std_logic;
+		
+		spice : out std_logic := '1';
+		spisck, spisi : out std_logic := '0';
+		spiso : in std_logic
 	);
 end dma;
 
@@ -45,11 +49,15 @@ architecture main of dma is
 	signal writeout : std_logic := '0';
 	type blocks_t is array(0 to nsram - 1) of unsigned(31 downto 0);
 	signal blocks : blocks_t := (others => (others => '1'));
+	signal blk : unsigned(23 downto 0);
 	signal nblk : unsigned(7 downto 0);
 	
 	constant SAVETIME : integer := 100000000 / 2;
 	signal saveclk : integer := 0;
 	signal flush : std_logic;
+	
+	signal spibuf : unsigned(7 downto 0);
+	signal spictr : unsigned(4 downto 0);
 begin
 	process
 	begin
@@ -68,6 +76,7 @@ begin
 				if datin(4) = '1' then
 					flush <= '1';
 				end if;
+				spice <= not datin(5);
 			when 1 =>
 				dmaaddr(15 downto 8) <= datin;
 			when 2 =>
@@ -82,19 +91,19 @@ begin
 				nblk <= datin;
 			when 7 =>
 				if armed1 = '1' and armed2 = '1' then
-					blocks(to_integer(nblk))(7 downto 0) <= datin;
+					blk(7 downto 0) <= datin;
 				end if;
 			when 8 =>
 				if armed1 = '1' and armed2 = '1' then
-					blocks(to_integer(nblk))(15 downto 8) <= datin;
+					blk(15 downto 8) <= datin;
 				end if;
 			when 9 =>
 				if armed1 = '1' and armed2 = '1' then
-					blocks(to_integer(nblk))(23 downto 16) <= datin;
+					blk(23 downto 16) <= datin;
 				end if;
 			when 10 =>
 				if armed1 = '1' and armed2 = '1' then
-					blocks(to_integer(nblk))(31 downto 24) <= datin;
+					blocks(to_integer(nblk)) <= datin & blk;
 				end if;
 			when 11 =>
 				if datin = X"37" then
@@ -116,6 +125,7 @@ begin
 			armed1 <= '0';
 			armed2 <= '0';
 			booten <= '1';
+			spice <= '1';
 			rommask(22 downto 8) <= (others => '1');
 		end if;
 		if card = '0' then
@@ -138,6 +148,8 @@ begin
 				end if;
 			when 6 =>
 				regout <= nblk;
+			when 13 =>
+				regout <= spibuf;
 			when others =>
 			end case;
 		end if;
@@ -149,6 +161,7 @@ begin
 
 		ramout <= sram(to_integer(ramaddr));
 		txindata <= sram(to_integer(curaddr));
+		wrblk <= blocks(to_integer(curaddr(15 downto 9)));
 		if wr = '1' and sramen = '1' then
 			sram(to_integer(ramaddr)) <= datin;
 		end if;
@@ -198,7 +211,6 @@ begin
 				dirty(ctr) <= '0';
 				state <= WRITEBLK;
 				curaddr(8 downto 0) <= (others => '0');
-				wrblk <= blocks(ctr);
 				txinstart <= '1';
 			else
 				txinstart <= '0';
@@ -253,4 +265,27 @@ begin
 		((hirom and addr(14) and addr(13) and not addr(22) and not cart) or (not hirom and addr(20) and addr(22) and not addr(15) and cart));
 	dmaen <= regen or sramen;
 	memen <= (rd and cart) when booten = '0' or addr(23 downto 16) /= "00000000" else '0';
+	
+	process
+	begin
+		wait until rising_edge(clk);
+		
+		if spictr /= "00000" then
+			case spictr(1 downto 0) is
+			when "00" =>
+			when "01" =>
+				spisck <= '1';
+			when "10" =>
+				spibuf <= spibuf(6 downto 0) & spiso;
+			when "11" =>
+				spisi <= spibuf(7);
+				spisck <= '0';
+			end case;
+			spictr <= spictr + 1;
+		elsif wr = '1' and regen = '1' and addr(3 downto 0) = X"D" then
+			spictr <= spictr + 1;
+			spisi <= datin(7);
+			spibuf <= datin;
+		end if;
+	end process;
 end main;
