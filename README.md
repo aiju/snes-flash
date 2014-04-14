@@ -29,6 +29,7 @@ Games larger than 32 megabits, using more than 64 kilobit of SRAM and using expa
 - Implement lockout chip (current board revision is flawed)
 - Implement creating save files (or at least a PC tool for that purpose)
 - Make the menus prettier
+- Fix solder mask sliver on board (causes bridges during reflow)
 
 ## Links
 
